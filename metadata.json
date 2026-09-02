@@ -1,0 +1,6 @@
+{
+  "name": "NexForge Droid Architecture & Runtime",
+  "description": "Autonomous software engineering agent architecture, runtime, and learning implementation inspired by modern coding agent design patterns.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

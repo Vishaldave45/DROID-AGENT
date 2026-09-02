@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  droid-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://nexforge:nexforge_secret@db:5432/nexforge_droid
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - ./app:/app/app
+      - workspace-data:/workspace
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: nexforge
+      POSTGRES_PASSWORD: nexforge_secret
+      POSTGRES_DB: nexforge_droid
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexforge -d nexforge_droid"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
+  workspace-data:

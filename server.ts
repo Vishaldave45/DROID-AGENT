@@ -196,6 +196,31 @@ app.post("/api/gemini/generate", async (req, res) => {
   }
 });
 
+// Execute autonomous agent run through python runtime
+app.post("/api/agent/run", (req, res) => {
+  const { requirement, provider = "mock", mockScenario = "patch_bug", maxIterations = 10 } = req.body;
+  if (!requirement) {
+    return res.status(400).json({ error: "Parameter 'requirement' is required." });
+  }
+
+  const reqStr = JSON.stringify(requirement);
+  const provStr = JSON.stringify(provider);
+  const scenStr = JSON.stringify(mockScenario);
+  const cmd = `python3 ./nexforge-droid/run_agent.py --requirement ${reqStr} --provider ${provStr} --mock-scenario ${scenStr} --max-iterations ${maxIterations}`;
+
+  exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
+    if (error && !stdout) {
+      return res.status(500).json({ error: stderr || error.message });
+    }
+    try {
+      const data = JSON.parse(stdout.trim());
+      res.json(data);
+    } catch (e: any) {
+      res.status(500).json({ error: "Failed to parse agent run output: " + stdout, raw: stdout + "\n" + stderr });
+    }
+  });
+});
+
 // Format preview endpoint to inspect Gemini payload conversion
 app.post("/api/llm/format-preview", (req, res) => {
   const { systemPrompt, userMessage, toolDefinitions } = req.body;

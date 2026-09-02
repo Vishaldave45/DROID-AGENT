@@ -54,6 +54,24 @@ def create_llm_provider(
     return provider_cls(**kwargs)
 
 
+class LLMProviderFactory:
+    """Factory helper for creating LLMProvider instances."""
+
+    @staticmethod
+    def create(
+        provider_name: str = "gemini",
+        api_key: Optional[str] = None,
+        model_name: Optional[str] = None,
+        **kwargs: Any,
+    ) -> LLMProvider:
+        return create_llm_provider(
+            provider_name=provider_name,
+            api_key=api_key,
+            model_name=model_name,
+            **kwargs,
+        )
+
+
 def get_default_provider() -> LLMProvider:
     """Retrieves the default configured provider based on runtime settings."""
     settings = get_settings()
@@ -75,6 +93,7 @@ __all__ = [
     "create_llm_provider",
     "get_default_provider",
     "register_provider",
+    "LLMProviderFactory",
     "LLMError",
     "RateLimitError",
     "AuthenticationError",

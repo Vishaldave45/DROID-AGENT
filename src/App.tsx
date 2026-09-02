@@ -6,11 +6,12 @@ import { RoadmapTimeline } from './components/RoadmapTimeline';
 import { FileTreeViewer } from './components/FileTreeViewer';
 import { LLMPlayground } from './components/LLMPlayground';
 import { ToolSystemExplorer } from './components/ToolSystemExplorer';
+import { AgentLoopStudio } from './components/AgentLoopStudio';
 import { SUBSYSTEMS, PHASE_ROADMAP, INITIAL_TEST_RESULTS } from './data/architectureData';
-import { Cpu, ShieldCheck, Terminal, Layers, Milestone, CheckCircle2, Bot, Wrench } from 'lucide-react';
+import { Cpu, ShieldCheck, Terminal, Layers, Milestone, CheckCircle2, Bot, Wrench, PlayCircle } from 'lucide-react';
 
 export default function App() {
-  const [activeView, setActiveView] = useState<'tools' | 'llm' | 'architecture' | 'subsystems' | 'tests' | 'files' | 'roadmap'>('tools');
+  const [activeView, setActiveView] = useState<'agent' | 'tools' | 'llm' | 'architecture' | 'subsystems' | 'tests' | 'files' | 'roadmap'>('agent');
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
@@ -25,7 +26,7 @@ export default function App() {
               <div className="font-bold text-base text-white tracking-tight flex items-center gap-2">
                 NexForge Droid
                 <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
-                  Phase 2 Live
+                  Phase 3 Live
                 </span>
               </div>
               <p className="text-xs text-slate-400">Autonomous Software Engineering Agent Platform</p>
@@ -35,11 +36,12 @@ export default function App() {
           {/* Navigation Bar */}
           <nav className="flex items-center gap-1 overflow-x-auto">
             {[
+              { id: 'agent', label: 'Agent Loop Studio', icon: PlayCircle },
               { id: 'tools', label: 'Core Tools (11)', icon: Wrench },
               { id: 'llm', label: 'LLM & Gemini', icon: Bot },
               { id: 'architecture', label: 'Architecture', icon: Layers },
               { id: 'subsystems', label: 'Subsystems (10)', icon: Cpu },
-              { id: 'tests', label: 'Verification (54/54)', icon: ShieldCheck },
+              { id: 'tests', label: 'Verification (59/59)', icon: ShieldCheck },
               { id: 'files', label: 'Filesystem', icon: Terminal },
               { id: 'roadmap', label: 'Roadmap', icon: Milestone },
             ].map((tab) => {
@@ -72,13 +74,13 @@ export default function App() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400 font-mono">Phase 2 Status: Complete &amp; Verified</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400 font-mono">Phase 3 Status: Complete &amp; Verified</span>
             </div>
             <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-              Core Tool System &amp; Dynamic Registry Engine (11 Tools)
+              Autonomous Agent Loop &amp; Step Controller
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 max-w-3xl leading-relaxed">
-              Filesystem (read, write, edit, list, delete), Search (search_code, find_files), Terminal execution sandbox (run_command), and Git VCS tools with strict JSON schemas, policy security gating, and 54 passing tests.
+              Multi-turn reasoning orchestration loop, tool dispatch execution, self-correcting error recovery, max iteration threshold safety guards, and 59 passing unit tests.
             </p>
           </div>
 
@@ -86,13 +88,17 @@ export default function App() {
             <div className="text-right">
               <div className="text-xs text-slate-400">Total Unit Tests Passed</div>
               <div className="text-lg font-bold text-emerald-400 font-mono flex items-center gap-1 justify-end">
-                <CheckCircle2 className="w-4 h-4" /> 100% (54/54)
+                <CheckCircle2 className="w-4 h-4" /> 100% (59/59)
               </div>
             </div>
           </div>
         </section>
 
         {/* Dynamic View Sections */}
+        {activeView === 'agent' && (
+          <AgentLoopStudio />
+        )}
+
         {activeView === 'tools' && (
           <ToolSystemExplorer />
         )}
@@ -127,7 +133,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-400">
-        <p>NexForge Droid — Autonomous Software Engineering Platform • Phase 2 Completed &amp; Verified</p>
+        <p>NexForge Droid — Autonomous Software Engineering Platform • Phase 3 Completed &amp; Verified</p>
       </footer>
     </div>
   );

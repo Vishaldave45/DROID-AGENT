@@ -96,6 +96,10 @@ class ToolRegistry:
             for tool in self._tools.values()
         ]
 
+    def get_all_schemas(self) -> List[Dict[str, Any]]:
+        """Alias for get_schemas for compatibility with agent runtime."""
+        return self.get_schemas()
+
     def dispatch(
         self,
         tool_name: str,

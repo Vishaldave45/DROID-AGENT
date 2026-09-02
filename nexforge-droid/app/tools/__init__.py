@@ -5,6 +5,7 @@ from typing import Optional
 
 from app.security.base import DefaultPolicyEngine, PolicyEngine, SecurityContext
 from app.tools.base import Tool, ToolRegistry, ToolResult
+from app.tools.agent_tools import FinishTaskTool
 from app.tools.filesystem import (
     DeleteFileTool,
     EditFileTool,
@@ -20,6 +21,7 @@ from app.tools.terminal import RunCommandTool
 def get_default_tool_registry(
     workspace_root: Optional[str] = None,
     policy_engine: Optional[PolicyEngine] = None,
+    include_agent_tools: bool = False,
 ) -> ToolRegistry:
     """Instantiates and registers all standard production tools with security governance."""
     root = workspace_root or os.getcwd()
@@ -47,6 +49,10 @@ def get_default_tool_registry(
     registry.register(GitDiffTool())
     registry.register(GitLogTool())
 
+    # 5. Agent Orchestration Tools
+    if include_agent_tools:
+        registry.register(FinishTaskTool())
+
     return registry
 
 
@@ -65,5 +71,6 @@ __all__ = [
     "GitStatusTool",
     "GitDiffTool",
     "GitLogTool",
+    "FinishTaskTool",
     "get_default_tool_registry",
 ]

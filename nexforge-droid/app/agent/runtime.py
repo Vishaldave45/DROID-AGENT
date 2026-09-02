@@ -9,7 +9,14 @@ from app.agent.prompts import build_system_prompt
 from app.llm.base import ChatMessage, ChatRole, LLMProvider, ToolCallRequest
 from app.observability.events import AuditEvent, EventType
 from app.observability.logger import get_logger
-from app.storage.base import InMemoryTaskStore, TaskState, TaskStatus, TaskStore
+from app.storage.base import (
+    InMemoryTaskStore,
+    TaskState,
+    TaskStatus,
+    TaskStore,
+    TaskTimelineEvent,
+    TimelineEventType,
+)
 from app.tools import get_default_tool_registry
 from app.tools.base import ToolRegistry, ToolResult
 
@@ -124,7 +131,15 @@ class AutonomousAgentRuntime(DroidRuntime):
 
     def step(self, state: TaskState) -> AgentStepResult:
         """Executes one step in the autonomous reasoning loop."""
-        if state.status in (TaskStatus.COMPLETED, TaskStatus.FAILED):
+        if state.status == TaskStatus.PAUSED:
+            logger.info(f"[Task {state.task_id}] Step skipped: Task is currently PAUSED.")
+            return AgentStepResult(
+                iteration=state.iteration,
+                is_terminal=False,
+                thought_summary="Task is currently PAUSED. Resume to continue execution.",
+            )
+
+        if state.status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED):
             return AgentStepResult(
                 iteration=state.iteration,
                 is_terminal=True,
@@ -137,6 +152,14 @@ class AutonomousAgentRuntime(DroidRuntime):
             state.errors.append(err_msg)
             state.mark_updated()
             self.task_store.save(state)
+            self.task_store.record_event(
+                TaskTimelineEvent(
+                    task_id=state.task_id,
+                    iteration=state.iteration,
+                    event_type=TimelineEventType.TASK_FAILED,
+                    payload={"error": err_msg},
+                )
+            )
             return AgentStepResult(
                 iteration=state.iteration,
                 is_terminal=True,
@@ -147,6 +170,15 @@ class AutonomousAgentRuntime(DroidRuntime):
         state.iteration += 1
         state.status = TaskStatus.EXECUTING
         conversation = self._get_conversation(state)
+
+        self.task_store.record_event(
+            TaskTimelineEvent(
+                task_id=state.task_id,
+                iteration=state.iteration,
+                event_type=TimelineEventType.STEP_START,
+                payload={"conversation_turns": len(conversation)},
+            )
+        )
 
         # Retrieve all tool schemas
         tool_schemas = self.tool_registry.get_all_schemas()
@@ -170,6 +202,14 @@ class AutonomousAgentRuntime(DroidRuntime):
             state.errors.append(error_str)
             state.status = TaskStatus.FAILED
             self.task_store.save(state)
+            self.task_store.record_event(
+                TaskTimelineEvent(
+                    task_id=state.task_id,
+                    iteration=state.iteration,
+                    event_type=TimelineEventType.TASK_FAILED,
+                    payload={"error": error_str},
+                )
+            )
             return AgentStepResult(
                 iteration=state.iteration,
                 is_terminal=True,
@@ -201,10 +241,37 @@ class AutonomousAgentRuntime(DroidRuntime):
                     f"with arguments: {tool_call.arguments}"
                 )
 
+                self.task_store.record_event(
+                    TaskTimelineEvent(
+                        task_id=state.task_id,
+                        iteration=state.iteration,
+                        event_type=TimelineEventType.TOOL_INVOCATION,
+                        payload={
+                            "tool_name": tool_call.tool_name,
+                            "arguments": tool_call.arguments,
+                        },
+                    )
+                )
+
                 tool_res: ToolResult = self.tool_registry.dispatch(
                     tool_call.tool_name, tool_call.arguments
                 )
                 last_tool_success = tool_res.success
+
+                # Record tool result event
+                self.task_store.record_event(
+                    TaskTimelineEvent(
+                        task_id=state.task_id,
+                        iteration=state.iteration,
+                        event_type=TimelineEventType.TOOL_RESULT,
+                        payload={
+                            "tool_name": tool_call.tool_name,
+                            "success": tool_res.success,
+                            "execution_time_ms": tool_res.execution_time_ms,
+                            "error": tool_res.error,
+                        },
+                    )
+                )
 
                 # Update state statistics based on tool execution
                 self._update_state_from_tool(state, tool_call.tool_name, tool_call.arguments, tool_res)
@@ -226,6 +293,15 @@ class AutonomousAgentRuntime(DroidRuntime):
                     state.status = TaskStatus.COMPLETED if final_status == "SUCCESS" else TaskStatus.FAILED
                     state.metadata["final_output"] = final_output
                     state.metadata["verification_evidence"] = tool_res.data.get("verification_evidence")
+
+                    self.task_store.record_event(
+                        TaskTimelineEvent(
+                            task_id=state.task_id,
+                            iteration=state.iteration,
+                            event_type=TimelineEventType.TASK_COMPLETED if final_status == "SUCCESS" else TimelineEventType.TASK_FAILED,
+                            payload={"final_output": final_output},
+                        )
+                    )
 
             self._save_conversation(state, conversation)
 
@@ -255,6 +331,15 @@ class AutonomousAgentRuntime(DroidRuntime):
 
         state.status = TaskStatus.COMPLETED
         state.metadata["final_output"] = response.content
+
+        self.task_store.record_event(
+            TaskTimelineEvent(
+                task_id=state.task_id,
+                iteration=state.iteration,
+                event_type=TimelineEventType.TASK_COMPLETED,
+                payload={"final_output": response.content},
+            )
+        )
 
         step_res = AgentStepResult(
             iteration=state.iteration,

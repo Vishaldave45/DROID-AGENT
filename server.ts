@@ -221,6 +221,159 @@ app.post("/api/agent/run", (req, res) => {
   });
 });
 
+// Storage & Persistence API endpoints
+app.get("/api/storage/stats", (req, res) => {
+  const cmd = `python3 ./nexforge-droid/run_storage.py --op stats`;
+  exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
+    if (error && !stdout) {
+      return res.status(500).json({ error: stderr || error.message });
+    }
+    try {
+      res.json(JSON.parse(stdout.trim()));
+    } catch (e: any) {
+      res.status(500).json({ error: "Failed to parse storage stats: " + stdout });
+    }
+  });
+});
+
+app.get("/api/storage/tasks", (req, res) => {
+  const status = req.query.status ? `--status ${JSON.stringify(req.query.status)}` : "";
+  const cmd = `python3 ./nexforge-droid/run_storage.py --op list-tasks ${status}`;
+  exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
+    if (error && !stdout) {
+      return res.status(500).json({ error: stderr || error.message });
+    }
+    try {
+      res.json(JSON.parse(stdout.trim()));
+    } catch (e: any) {
+      res.status(500).json({ error: "Failed to parse tasks list: " + stdout });
+    }
+  });
+});
+
+app.get("/api/storage/tasks/:id", (req, res) => {
+  const taskId = JSON.stringify(req.params.id);
+  const cmd = `python3 ./nexforge-droid/run_storage.py --op get-task --task-id ${taskId}`;
+  exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
+    if (error && !stdout) {
+      return res.status(500).json({ error: stderr || error.message });
+    }
+    try {
+      res.json(JSON.parse(stdout.trim()));
+    } catch (e: any) {
+      res.status(500).json({ error: "Failed to parse task details: " + stdout });
+    }
+  });
+});
+
+app.post("/api/storage/tasks", (req, res) => {
+  const { requirement = "Manual Task", repoId = "repo_main" } = req.body;
+  const reqStr = JSON.stringify(requirement);
+  const repoStr = JSON.stringify(repoId);
+  const cmd = `python3 ./nexforge-droid/run_storage.py --op create-task --requirement ${reqStr} --repo-id ${repoStr}`;
+  exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
+    if (error && !stdout) {
+      return res.status(500).json({ error: stderr || error.message });
+    }
+    try {
+      res.json(JSON.parse(stdout.trim()));
+    } catch (e: any) {
+      res.status(500).json({ error: "Failed to create task: " + stdout });
+    }
+  });
+});
+
+app.post("/api/storage/tasks/:id/pause", (req, res) => {
+  const taskId = JSON.stringify(req.params.id);
+  const reason = JSON.stringify(req.body.reason || "Manual user pause");
+  const cmd = `python3 ./nexforge-droid/run_storage.py --op pause-task --task-id ${taskId} --reason ${reason}`;
+  exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
+    if (error && !stdout) {
+      return res.status(500).json({ error: stderr || error.message });
+    }
+    try {
+      res.json(JSON.parse(stdout.trim()));
+    } catch (e: any) {
+      res.status(500).json({ error: "Failed to pause task: " + stdout });
+    }
+  });
+});
+
+app.post("/api/storage/tasks/:id/resume", (req, res) => {
+  const taskId = JSON.stringify(req.params.id);
+  const cmd = `python3 ./nexforge-droid/run_storage.py --op resume-task --task-id ${taskId}`;
+  exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
+    if (error && !stdout) {
+      return res.status(500).json({ error: stderr || error.message });
+    }
+    try {
+      res.json(JSON.parse(stdout.trim()));
+    } catch (e: any) {
+      res.status(500).json({ error: "Failed to resume task: " + stdout });
+    }
+  });
+});
+
+app.post("/api/storage/tasks/:id/checkpoint", (req, res) => {
+  const taskId = JSON.stringify(req.params.id);
+  const desc = JSON.stringify(req.body.description || "Manual checkpoint snapshot");
+  const cmd = `python3 ./nexforge-droid/run_storage.py --op create-checkpoint --task-id ${taskId} --desc ${desc}`;
+  exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
+    if (error && !stdout) {
+      return res.status(500).json({ error: stderr || error.message });
+    }
+    try {
+      res.json(JSON.parse(stdout.trim()));
+    } catch (e: any) {
+      res.status(500).json({ error: "Failed to create checkpoint: " + stdout });
+    }
+  });
+});
+
+app.post("/api/storage/checkpoints/:id/restore", (req, res) => {
+  const chkId = JSON.stringify(req.params.id);
+  const cmd = `python3 ./nexforge-droid/run_storage.py --op restore-checkpoint --checkpoint-id ${chkId}`;
+  exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
+    if (error && !stdout) {
+      return res.status(500).json({ error: stderr || error.message });
+    }
+    try {
+      res.json(JSON.parse(stdout.trim()));
+    } catch (e: any) {
+      res.status(500).json({ error: "Failed to restore checkpoint: " + stdout });
+    }
+  });
+});
+
+app.delete("/api/storage/tasks/:id", (req, res) => {
+  const taskId = JSON.stringify(req.params.id);
+  const cmd = `python3 ./nexforge-droid/run_storage.py --op delete-task --task-id ${taskId}`;
+  exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
+    if (error && !stdout) {
+      return res.status(500).json({ error: stderr || error.message });
+    }
+    try {
+      res.json(JSON.parse(stdout.trim()));
+    } catch (e: any) {
+      res.status(500).json({ error: "Failed to delete task: " + stdout });
+    }
+  });
+});
+
+app.post("/api/storage/seed", (req, res) => {
+  const cmd = `python3 ./nexforge-droid/run_storage.py --op seed-demo-data`;
+  exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
+    if (error && !stdout) {
+      return res.status(500).json({ error: stderr || error.message });
+    }
+    try {
+      res.json(JSON.parse(stdout.trim()));
+    } catch (e: any) {
+      res.status(500).json({ error: "Failed to seed storage data: " + stdout });
+    }
+  });
+});
+
 // Format preview endpoint to inspect Gemini payload conversion
 app.post("/api/llm/format-preview", (req, res) => {
   const { systemPrompt, userMessage, toolDefinitions } = req.body;

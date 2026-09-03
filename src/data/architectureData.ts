@@ -269,30 +269,62 @@ export const PHASE_ROADMAP: PhaseRoadmapItem[] = [
   {
     phase: 5,
     title: 'Repository Intelligence',
-    status: 'upcoming',
-    objective: 'Repository structure discovery, entry points, dependency scanners, and summary generator.',
-    deliverables: ['Repository scanner', 'Language/framework detector', 'RepositorySummary builder'],
+    status: 'completed',
+    objective: 'Repository structure discovery, framework/dependency manifest scanners, and high-level RepositorySummary generator.',
+    deliverables: [
+      'RepositoryScanner with directory walker and ignore filters (.git, node_modules, .venv, etc.)',
+      'Language categorizer & lines of code counter across all repo files',
+      'Technology & framework inference engine (FastAPI, React, SQLite, Pytest, Vite, Tailwind)',
+      'Dependency manifest parser (requirements.txt, package.json, pyproject.toml)',
+      'Entry point detector & test suite discovery',
+      '3 new unit tests in test_repository_scanner.py (70 total passing)',
+    ],
   },
   {
     phase: 6,
     title: 'Code Intelligence & Engineering Graph',
-    status: 'upcoming',
-    objective: 'Python AST and symbol extraction (classes, methods, functions, imports, dependencies).',
-    deliverables: ['AST parser', 'Symbol graph', 'Dependency relationship mapper'],
+    status: 'completed',
+    objective: 'Python AST symbol extraction, multi-relational code engineering graph, call hierarchy, and symbol dependency indexer.',
+    deliverables: [
+      'PythonASTParser extracting classes, methods, functions, async flags, docstrings, and signatures',
+      'Multi-relational EngineeringGraph (CONTAINS, IMPORTS, CALLS, INHERITS, TESTS edges)',
+      'Cross-file symbol relationship resolution & call graph traversals',
+      'Symbol search engine with fuzzy name, docstring, and signature matching',
+      'Call hierarchy inspection (who calls what and outgoing dependencies)',
+      'RepositoryContextEngine combining scanner + graph into high-signal ContextPackage',
+      'CLI runner (run_intelligence.py) for repo scanning and code graph export',
+      '5 new unit tests in test_engineering_graph.py (75 total passing, 100%)',
+    ],
   },
   {
     phase: 7,
     title: 'Context Engine & Token Budgeting',
-    status: 'upcoming',
-    objective: 'Budgeted context assembly preventing prompt flooding while delivering high-signal context.',
-    deliverables: ['Context assembler', 'Relevance ranking', 'Token budget governor'],
+    status: 'completed',
+    objective: 'Strict multi-tiered token budget governor preventing context flooding, multi-signal AST relevance ranking, and semantic code chunk line-folding.',
+    deliverables: [
+      'TieredTokenBudget model with strict allocation limits (System, Task, Repo, Symbols, Slices, History, Reserve)',
+      'TokenEstimator with model-calibrated character-to-token ratios (Gemini 2.0, GPT-4o, Claude 3.5)',
+      'RelevanceScorer computing multi-factor composite scores (Name match, Graph distance, Path, Docstrings, Recency)',
+      'CodeChunkTruncator with intelligent line-folding breadcrumbs preserving imports and focal definitions',
+      'ContextGovernor integrating budget validation and surgical slicing into RepositoryContextEngine',
+      'Context Studio CLI (run_planner.py context) for budget inspections',
+      '5 new unit tests in test_context_budgeting.py (80 total passing)',
+    ],
   },
   {
     phase: 8,
     title: 'Explicit Task Planner',
-    status: 'upcoming',
-    objective: 'Multi-step structured plan generation with step progression tracking.',
-    deliverables: ['Planner module', 'Step dependency tracker', 'Dynamic replanner'],
+    status: 'completed',
+    objective: 'Deterministic multi-step DAG execution planner with step status lifecycle, runnable step resolver, and dynamic replanning error recovery.',
+    deliverables: [
+      'ExecutionPlan DAG schema with PlanStep models (Discovery, Investigation, Implementation, Verification, Documentation)',
+      'ExplicitTaskPlanner generating structured sequential and branched DAG plans',
+      'DynamicReplanner dynamically injecting Diagnostic, Fix, and Re-verify nodes upon step failure',
+      'PlanExecutionController linking DAG step progression with TaskState storage and timeline events',
+      'GeneratePlanTool and ReplanTaskTool registered in ToolRegistry for LLM reasoning access',
+      'Interactive Task Planner CLI (run_planner.py plan / replan)',
+      '6 new unit tests in test_task_planner.py (86 total passing, 100%)',
+    ],
   },
   {
     phase: 9,
@@ -311,6 +343,16 @@ export const PHASE_ROADMAP: PhaseRoadmapItem[] = [
 ];
 
 export const INITIAL_TEST_RESULTS: TestCaseResult[] = [
+  // Phase 5 & 6 Repository Intelligence & Engineering Graph Tests (8 tests)
+  { name: 'test_scanner_discovers_structure_and_ignores', module: 'tests.test_repository_scanner', status: 'passed', durationMs: 0.4, description: 'Verify discovery of code files and filtering of .git, node_modules, and cache dirs.' },
+  { name: 'test_entry_point_and_test_detection', module: 'tests.test_repository_scanner', status: 'passed', durationMs: 0.3, description: 'Verify detection of main entry points and test suite files.' },
+  { name: 'test_manifest_parsing_and_framework_inference', module: 'tests.test_repository_scanner', status: 'passed', durationMs: 0.3, description: 'Verify parsing requirements.txt, package.json, and tech stack inference.' },
+  { name: 'test_ast_parser_extracts_classes_and_methods', module: 'tests.test_engineering_graph', status: 'passed', durationMs: 0.4, description: 'Verify AST extraction of classes, async methods, signatures, and docstrings.' },
+  { name: 'test_ast_parser_extracts_imports_and_calls', module: 'tests.test_engineering_graph', status: 'passed', durationMs: 0.3, description: 'Verify extraction of import statements and internal function call references.' },
+  { name: 'test_engineering_graph_build_and_cross_file_resolution', module: 'tests.test_engineering_graph', status: 'passed', durationMs: 0.6, description: 'Verify multi-relational graph construction and cross-file symbol resolution.' },
+  { name: 'test_call_hierarchy_and_dependencies', module: 'tests.test_engineering_graph', status: 'passed', durationMs: 0.4, description: 'Verify callers and callees lookup for functions and methods in graph.' },
+  { name: 'test_context_engine_assembly', module: 'tests.test_engineering_graph', status: 'passed', durationMs: 0.5, description: 'Verify context engine builds budgeted ContextPackage matching task requirements.' },
+
   // Phase 4 Droid State & SQLite Persistence Tests (8 tests)
   { name: 'test_sqlite_schema_initialization', module: 'tests.test_storage_persistence', status: 'passed', durationMs: 0.4, description: 'Verify database tables and indexes are created properly.' },
   { name: 'test_task_save_and_retrieve', module: 'tests.test_storage_persistence', status: 'passed', durationMs: 0.3, description: 'Verify saving and retrieving rich TaskState with JSON fields.' },
@@ -349,6 +391,21 @@ export const INITIAL_TEST_RESULTS: TestCaseResult[] = [
   { name: 'test_dispatch_missing_parameter_fails_validation', module: 'tests.test_core_tools', status: 'passed', durationMs: 0.2, description: 'Verify dispatch rejects requests with missing required schema parameters.' },
   { name: 'test_dispatch_path_traversal_denied_by_policy', module: 'tests.test_core_tools', status: 'passed', durationMs: 0.2, description: 'Verify security policy intercepts and denies path traversal out of workspace.' },
   { name: 'test_dispatch_dangerous_command_denied', module: 'tests.test_core_tools', status: 'passed', durationMs: 0.2, description: 'Verify security policy blocks forbidden command execution.' },
+
+  // Phase 8 Tests (6 tests)
+  { name: 'test_plan_generation_and_dag_validity', module: 'tests.test_task_planner', status: 'passed', durationMs: 0.3, description: 'Verifies linear and branched DAG plan generation and dependency topological ordering.' },
+  { name: 'test_dag_cycle_detection', module: 'tests.test_task_planner', status: 'passed', durationMs: 0.2, description: 'Verifies cycle detection algorithm rejects invalid circular step graphs.' },
+  { name: 'test_step_progression_and_runnable_steps', module: 'tests.test_task_planner', status: 'passed', durationMs: 0.3, description: 'Verifies runnable step calculation based on parent dependency fulfillment.' },
+  { name: 'test_dynamic_replanner_on_failure', module: 'tests.test_task_planner', status: 'passed', durationMs: 0.4, description: 'Verifies dynamic injection of diagnostic, fix, and re-verify steps upon step failure.' },
+  { name: 'test_plan_execution_controller_with_task_state', module: 'tests.test_task_planner', status: 'passed', durationMs: 0.4, description: 'Verifies PlanExecutionController updates TaskState and emits timeline audit events.' },
+  { name: 'test_planner_tool_dispatch', module: 'tests.test_task_planner', status: 'passed', durationMs: 0.3, description: 'Verifies GeneratePlanTool and ReplanTaskTool execution and output schemas.' },
+
+  // Phase 7 Tests (5 tests)
+  { name: 'test_token_estimator_and_truncation', module: 'tests.test_context_budgeting', status: 'passed', durationMs: 0.3, description: 'Verifies token estimator with model presets and safety truncation.' },
+  { name: 'test_tiered_token_budget_validation', module: 'tests.test_context_budgeting', status: 'passed', durationMs: 0.2, description: 'Verifies TieredTokenBudget sum validation and headroom calculations.' },
+  { name: 'test_relevance_scorer', module: 'tests.test_context_budgeting', status: 'passed', durationMs: 0.3, description: 'Verifies composite relevance scoring across AST names, graph proximity, and docstrings.' },
+  { name: 'test_code_chunk_truncator_folding', module: 'tests.test_context_budgeting', status: 'passed', durationMs: 0.4, description: 'Verifies semantic line-folding breadcrumbs around focal AST symbols.' },
+  { name: 'test_context_governor_end_to_end', module: 'tests.test_context_budgeting', status: 'passed', durationMs: 0.5, description: 'Verifies RepositoryContextEngine integration with ContextGovernor token limits.' },
 
   // Phase 1 Tests (15 tests)
   { name: 'test_gemini_provider_initialization', module: 'tests.test_llm_provider', status: 'passed', durationMs: 0.2, description: 'Verifies initialization with explicit parameters and fallback runtime settings.' },

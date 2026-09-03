@@ -374,6 +374,101 @@ app.post("/api/storage/seed", (req, res) => {
   });
 });
 
+// Repository Intelligence & Code Graph API endpoints (Phase 5 & 6)
+app.get("/api/repo/scan", (req, res) => {
+  const targetPath = JSON.stringify(req.query.path || "./nexforge-droid");
+  const cmd = `python3 ./nexforge-droid/run_intelligence.py --op scan --path ${targetPath}`;
+  exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
+    if (error && !stdout) {
+      return res.status(500).json({ error: stderr || error.message });
+    }
+    try {
+      res.json(JSON.parse(stdout.trim()));
+    } catch (e: any) {
+      res.status(500).json({ error: "Failed to parse repository scan: " + stdout });
+    }
+  });
+});
+
+app.get("/api/repo/graph", (req, res) => {
+  const targetPath = JSON.stringify(req.query.path || "./nexforge-droid");
+  const maxNodes = Number(req.query.maxNodes) || 150;
+  const cmd = `python3 ./nexforge-droid/run_intelligence.py --op graph --path ${targetPath} --max-nodes ${maxNodes}`;
+  exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
+    if (error && !stdout) {
+      return res.status(500).json({ error: stderr || error.message });
+    }
+    try {
+      res.json(JSON.parse(stdout.trim()));
+    } catch (e: any) {
+      res.status(500).json({ error: "Failed to parse engineering graph: " + stdout });
+    }
+  });
+});
+
+app.get("/api/repo/symbols", (req, res) => {
+  const targetPath = JSON.stringify(req.query.path || "./nexforge-droid");
+  const query = JSON.stringify(req.query.query || "");
+  const cmd = `python3 ./nexforge-droid/run_intelligence.py --op search-symbols --path ${targetPath} --query ${query}`;
+  exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
+    if (error && !stdout) {
+      return res.status(500).json({ error: stderr || error.message });
+    }
+    try {
+      res.json(JSON.parse(stdout.trim()));
+    } catch (e: any) {
+      res.status(500).json({ error: "Failed to search symbols: " + stdout });
+    }
+  });
+});
+
+app.get("/api/repo/symbol-details", (req, res) => {
+  const targetPath = JSON.stringify(req.query.path || "./nexforge-droid");
+  const symbol = JSON.stringify(req.query.symbol || "");
+  const cmd = `python3 ./nexforge-droid/run_intelligence.py --op symbol-details --path ${targetPath} --symbol ${symbol}`;
+  exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
+    if (error && !stdout) {
+      return res.status(500).json({ error: stderr || error.message });
+    }
+    try {
+      res.json(JSON.parse(stdout.trim()));
+    } catch (e: any) {
+      res.status(500).json({ error: "Failed to parse symbol details: " + stdout });
+    }
+  });
+});
+
+app.post("/api/repo/context", (req, res) => {
+  const targetPath = JSON.stringify(req.body.path || "./nexforge-droid");
+  const requirement = JSON.stringify(req.body.requirement || "Analyze codebase structure and verify test suites.");
+  const cmd = `python3 ./nexforge-droid/run_intelligence.py --op context --path ${targetPath} --requirement ${requirement}`;
+  exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
+    if (error && !stdout) {
+      return res.status(500).json({ error: stderr || error.message });
+    }
+    try {
+      res.json(JSON.parse(stdout.trim()));
+    } catch (e: any) {
+      res.status(500).json({ error: "Failed to assemble context: " + stdout });
+    }
+  });
+});
+
+app.get("/api/repo/stats", (req, res) => {
+  const targetPath = JSON.stringify(req.query.path || "./nexforge-droid");
+  const cmd = `python3 ./nexforge-droid/run_intelligence.py --op stats --path ${targetPath}`;
+  exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
+    if (error && !stdout) {
+      return res.status(500).json({ error: stderr || error.message });
+    }
+    try {
+      res.json(JSON.parse(stdout.trim()));
+    } catch (e: any) {
+      res.status(500).json({ error: "Failed to get repository stats: " + stdout });
+    }
+  });
+});
+
 // Format preview endpoint to inspect Gemini payload conversion
 app.post("/api/llm/format-preview", (req, res) => {
   const { systemPrompt, userMessage, toolDefinitions } = req.body;

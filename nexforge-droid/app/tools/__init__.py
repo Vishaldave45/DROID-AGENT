@@ -51,7 +51,10 @@ def get_default_tool_registry(
 
     # 5. Agent Orchestration Tools
     if include_agent_tools:
+        from app.planner.tools import GeneratePlanTool, ReplanTaskTool
         registry.register(FinishTaskTool())
+        registry.register(GeneratePlanTool())
+        registry.register(ReplanTaskTool())
 
     return registry
 
@@ -72,5 +75,8 @@ __all__ = [
     "GitDiffTool",
     "GitLogTool",
     "FinishTaskTool",
+    "GeneratePlanTool",
+    "ReplanTaskTool",
     "get_default_tool_registry",
 ]
+

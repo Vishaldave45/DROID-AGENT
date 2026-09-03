@@ -8,11 +8,30 @@ import { LLMPlayground } from './components/LLMPlayground';
 import { ToolSystemExplorer } from './components/ToolSystemExplorer';
 import { AgentLoopStudio } from './components/AgentLoopStudio';
 import { StatePersistenceStudio } from './components/StatePersistenceStudio';
+import { RepoIntelligenceStudio } from './components/RepoIntelligenceStudio';
+import { ContextBudgetStudio } from './components/ContextBudgetStudio';
+import { TaskPlannerStudio } from './components/TaskPlannerStudio';
 import { SUBSYSTEMS, PHASE_ROADMAP, INITIAL_TEST_RESULTS } from './data/architectureData';
-import { Cpu, ShieldCheck, Terminal, Layers, Milestone, CheckCircle2, Bot, Wrench, PlayCircle, Database } from 'lucide-react';
+import {
+  Cpu,
+  ShieldCheck,
+  Terminal,
+  Layers,
+  Milestone,
+  CheckCircle2,
+  Bot,
+  Wrench,
+  PlayCircle,
+  Database,
+  Compass,
+  Gauge,
+  ListOrdered,
+} from 'lucide-react';
 
 export default function App() {
-  const [activeView, setActiveView] = useState<'agent' | 'storage' | 'tools' | 'llm' | 'architecture' | 'subsystems' | 'tests' | 'files' | 'roadmap'>('storage');
+  const [activeView, setActiveView] = useState<
+    'planner' | 'context' | 'repo' | 'storage' | 'agent' | 'tools' | 'llm' | 'architecture' | 'subsystems' | 'tests' | 'files' | 'roadmap'
+  >('planner');
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
@@ -27,7 +46,7 @@ export default function App() {
               <div className="font-bold text-base text-white tracking-tight flex items-center gap-2">
                 NexForge Droid
                 <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
-                  Phase 4 Live
+                  Phase 7 &amp; 8 Live
                 </span>
               </div>
               <p className="text-xs text-slate-400">Autonomous Software Engineering Agent Platform</p>
@@ -37,13 +56,16 @@ export default function App() {
           {/* Navigation Bar */}
           <nav className="flex items-center gap-1 overflow-x-auto">
             {[
+              { id: 'planner', label: 'Task Planner (DAG)', icon: ListOrdered },
+              { id: 'context', label: 'Context & Budget', icon: Gauge },
+              { id: 'repo', label: 'Repo & Code Graph', icon: Compass },
               { id: 'storage', label: 'State & SQLite DB', icon: Database },
               { id: 'agent', label: 'Agent Loop Studio', icon: PlayCircle },
-              { id: 'tools', label: 'Core Tools (11)', icon: Wrench },
+              { id: 'tools', label: 'Core Tools (13)', icon: Wrench },
               { id: 'llm', label: 'LLM & Gemini', icon: Bot },
               { id: 'architecture', label: 'Architecture', icon: Layers },
               { id: 'subsystems', label: 'Subsystems (10)', icon: Cpu },
-              { id: 'tests', label: 'Verification (67/67)', icon: ShieldCheck },
+              { id: 'tests', label: 'Verification (86/86)', icon: ShieldCheck },
               { id: 'files', label: 'Filesystem', icon: Terminal },
               { id: 'roadmap', label: 'Roadmap', icon: Milestone },
             ].map((tab) => {
@@ -76,13 +98,13 @@ export default function App() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400 font-mono">Phase 4 Status: Complete &amp; Verified</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400 font-mono">Phase 7 &amp; 8: Complete &amp; Verified</span>
             </div>
             <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-              Droid State &amp; SQLite Persistence Engine
+              Context Budget Governor &amp; Explicit Task Planner
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 max-w-3xl leading-relaxed">
-              Production SQLite storage layer with schema DDL migrations, immutable execution timeline event logging, point-in-time state rollback checkpoints, and pause/resume lifecycle.
+              Tiered token budget management, multi-signal AST relevance scoring, semantic line-folding, deterministic DAG execution planning, and runtime failure recovery with dynamic replanning.
             </p>
           </div>
 
@@ -90,13 +112,25 @@ export default function App() {
             <div className="text-right">
               <div className="text-xs text-slate-400">Total Unit Tests Passed</div>
               <div className="text-lg font-bold text-emerald-400 font-mono flex items-center gap-1 justify-end">
-                <CheckCircle2 className="w-4 h-4" /> 100% (67/67)
+                <CheckCircle2 className="w-4 h-4" /> 100% (86/86)
               </div>
             </div>
           </div>
         </section>
 
         {/* Dynamic View Sections */}
+        {activeView === 'planner' && (
+          <TaskPlannerStudio />
+        )}
+
+        {activeView === 'context' && (
+          <ContextBudgetStudio />
+        )}
+
+        {activeView === 'repo' && (
+          <RepoIntelligenceStudio />
+        )}
+
         {activeView === 'storage' && (
           <StatePersistenceStudio />
         )}
@@ -139,7 +173,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-400">
-        <p>NexForge Droid — Autonomous Software Engineering Platform • Phase 4 Completed &amp; Verified</p>
+        <p>NexForge Droid — Autonomous Software Engineering Platform • Phase 7 &amp; 8 Completed &amp; Verified</p>
       </footer>
     </div>
   );

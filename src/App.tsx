@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ArchitectureGraph } from './components/ArchitectureGraph';
 import { SubsystemCard } from './components/SubsystemCard';
 import { TestResultsViewer } from './components/TestResultsViewer';
@@ -15,9 +15,8 @@ import { SafePatchingStudio } from './components/SafePatchingStudio';
 import { DiagnosticLoopStudio } from './components/DiagnosticLoopStudio';
 import { WorkspaceOrchestratorStudio } from './components/WorkspaceOrchestratorStudio';
 import { LiveStreamingConsole } from './components/LiveStreamingConsole';
-import { SUBSYSTEMS, PHASE_ROADMAP } from './data/architectureData';
-import { SubsystemInfo } from './types';
-import { systemApi, SystemManifestResponse } from './api';
+import { PHASE_ROADMAP } from './data/architectureData';
+import { SystemProvider, useSystem } from './context/SystemContext';
 import {
   Cpu,
   ShieldCheck,
@@ -36,9 +35,11 @@ import {
   Activity,
   GitPullRequest,
   Radio,
+  FlaskConical,
+  Zap,
 } from 'lucide-react';
 
-export default function App() {
+function MainApp() {
   const [activeView, setActiveView] = useState<
     | 'orchestrator'
     | 'streaming'
@@ -58,29 +59,7 @@ export default function App() {
     | 'roadmap'
   >('orchestrator');
 
-  const [subsystems, setSubsystems] = useState<SubsystemInfo[]>(SUBSYSTEMS);
-  const [manifest, setManifest] = useState<SystemManifestResponse | null>(null);
-
-  useEffect(() => {
-    // Dynamically fetch live system manifest and real subsystems from Python backend
-    systemApi
-      .getManifest()
-      .then((data) => {
-        if (data && data.success) {
-          setManifest(data);
-        }
-      })
-      .catch(console.error);
-
-    systemApi
-      .getSubsystems()
-      .then((data) => {
-        if (data && data.subsystems && data.subsystems.length > 0) {
-          setSubsystems(data.subsystems);
-        }
-      })
-      .catch(console.error);
-  }, []);
+  const { manifest, subsystems, demoMode, health } = useSystem();
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
@@ -96,8 +75,27 @@ export default function App() {
                 NexForge Droid
                 <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  Phase 11 &amp; 12 Live
+                  Phase {health?.phase || 12} Live
                 </span>
+                {demoMode ? (
+                  <span
+                    id="demo-mode-badge"
+                    className="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-800/80 flex items-center gap-1 shadow-sm"
+                    title="Demo Mode is ACTIVE: Mock/sample scenarios available"
+                  >
+                    <FlaskConical className="w-3 h-3 text-amber-400" />
+                    DEMO MODE
+                  </span>
+                ) : (
+                  <span
+                    id="live-mode-badge"
+                    className="text-[11px] font-mono px-2 py-0.5 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-800/80 flex items-center gap-1 shadow-sm"
+                    title="Live Execution Mode: Direct workspace tools and real AST"
+                  >
+                    <Zap className="w-3 h-3 text-indigo-400" />
+                    PRODUCTION RUNTIME
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-400">Autonomous Software Engineering Agent Platform</p>
             </div>
@@ -231,5 +229,13 @@ export default function App() {
         <p>NexForge Droid — Autonomous Software Engineering Platform • Phase 11 &amp; 12 Autonomous Orchestration</p>
       </footer>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <SystemProvider>
+      <MainApp />
+    </SystemProvider>
   );
 }

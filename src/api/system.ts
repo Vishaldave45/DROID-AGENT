@@ -18,6 +18,15 @@ export interface SystemManifestResponse {
   environment: string;
   defaultModel: string;
   maxContextTokens: number;
+  demoMode?: boolean;
+}
+
+export interface HealthResponse {
+  status: string;
+  service: string;
+  phase: number;
+  demoMode: boolean;
+  timestamp: string;
 }
 
 export interface SubsystemsResponse {
@@ -52,7 +61,7 @@ export interface ContextBudgetResponse {
 }
 
 export const systemApi = {
-  getHealth: () => api.get<{ status: string; service: string; phase: number }>('/api/health'),
+  getHealth: () => api.get<HealthResponse>('/api/health'),
 
   getManifest: () => api.get<SystemManifestResponse>('/api/system/manifest'),
 

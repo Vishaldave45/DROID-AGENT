@@ -27,6 +27,7 @@ import {
   Code,
 } from 'lucide-react';
 import { AgentStreamEvent } from '../types';
+import { streamingApi } from '../api/streaming';
 
 export const LiveStreamingConsole: React.FC = () => {
   const [mode, setMode] = useState<'stream' | 'debugger'>('stream');
@@ -82,8 +83,7 @@ export const LiveStreamingConsole: React.FC = () => {
 
   const fetchScenarios = async () => {
     try {
-      const res = await fetch('/api/debugger/scenarios');
-      const data = await res.json();
+      const data = await streamingApi.getScenarios();
       if (data.success && data.scenarios) {
         setScenarios(data.scenarios);
       }
@@ -103,7 +103,7 @@ export const LiveStreamingConsole: React.FC = () => {
     setSelectedEvent(null);
     setTotalTokens(0);
 
-    const eventSource = new EventSource(`/api/agent/stream-events?scenario=${scenarioId}`);
+    const eventSource = new EventSource(streamingApi.createEventStreamUrl(scenarioId));
     eventSourceRef.current = eventSource;
 
     setTerminalLogs((prev) => [
@@ -162,12 +162,7 @@ export const LiveStreamingConsole: React.FC = () => {
 
   const handleDebuggerReset = async () => {
     try {
-      const res = await fetch('/api/debugger/reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenarioId }),
-      });
-      const data = await res.json();
+      const data = await streamingApi.resetDebugger(scenarioId);
       if (data.success) {
         setEvents([]);
         setDbgStep(0);
@@ -187,12 +182,7 @@ export const LiveStreamingConsole: React.FC = () => {
 
   const handleDebuggerStep = async () => {
     try {
-      const res = await fetch('/api/debugger/step', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      const data = await res.json();
+      const data = await streamingApi.stepDebugger();
       if (data.success && data.rawEvent) {
         setEvents((prev) => [...prev, data.rawEvent]);
         setDbgStep(data.step);
@@ -222,12 +212,7 @@ export const LiveStreamingConsole: React.FC = () => {
 
   const handleDebuggerContinue = async () => {
     try {
-      const res = await fetch('/api/debugger/continue', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      const data = await res.json();
+      const data = await streamingApi.continueDebugger();
       if (data.success && data.steps) {
         for (const s of data.steps) {
           if (s.rawEvent) {
@@ -257,11 +242,7 @@ export const LiveStreamingConsole: React.FC = () => {
     setBreakpoints(nextBp);
     const activeTypes = Object.keys(nextBp).filter((k) => nextBp[k]);
     try {
-      await fetch('/api/debugger/breakpoints', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventTypes: activeTypes }),
-      });
+      await streamingApi.setBreakpoints(activeTypes);
     } catch (e) {
       console.error('Failed to sync breakpoints:', e);
     }

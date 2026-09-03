@@ -333,6 +333,7 @@ def handle_system_manifest(data: dict) -> dict:
         "environment": settings.environment,
         "defaultModel": settings.default_model,
         "maxContextTokens": settings.max_context_tokens,
+        "demoMode": settings.is_demo_mode(),
     }
 
 

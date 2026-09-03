@@ -22,6 +22,7 @@ import {
   Bug,
   Search,
 } from 'lucide-react';
+import { agentApi } from '../api/agent';
 
 interface AgentStep {
   event_type: string;
@@ -105,22 +106,17 @@ export const AgentLoopStudio: React.FC = () => {
     setSelectedStepIndex(null);
 
     try {
-      const res = await fetch('/api/agent/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          requirement,
-          provider,
-          mockScenario,
-          maxIterations,
-        }),
+      const data = await agentApi.run({
+        requirement,
+        provider: provider as 'gemini' | 'mock',
+        mockScenario,
+        maxIterations,
       });
 
-      const data = await res.json();
-      if (!res.ok || data.error) {
+      if (data.error) {
         setErrorMessage(data.error || 'Agent run execution failed.');
       } else {
-        setRunResult(data);
+        setRunResult(data as any);
         if (data.steps && data.steps.length > 0) {
           setSelectedStepIndex(data.steps.length - 1);
           // Auto-expand all steps by default

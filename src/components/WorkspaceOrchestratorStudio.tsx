@@ -22,6 +22,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { Changeset, ApprovalRequest, RefactorPlan } from '../types';
+import { orchestratorApi } from '../api/orchestrator';
 
 export const WorkspaceOrchestratorStudio: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'refactor' | 'changesets' | 'approvals' | 'pr_preview'>('refactor');
@@ -61,8 +62,7 @@ export const WorkspaceOrchestratorStudio: React.FC = () => {
   const fetchChangesets = async () => {
     setChangesetLoading(true);
     try {
-      const res = await fetch('/api/orchestrator/changesets');
-      const data = await res.json();
+      const data = await orchestratorApi.getChangesets();
       if (data.success && data.changesets) {
         setChangesets(data.changesets);
         if (data.changesets.length > 0 && !selectedChangeset) {
@@ -79,8 +79,7 @@ export const WorkspaceOrchestratorStudio: React.FC = () => {
   const fetchApprovals = async () => {
     setApprovalsLoading(true);
     try {
-      const res = await fetch('/api/orchestrator/approvals');
-      const data = await res.json();
+      const data = await orchestratorApi.getApprovals(approvalFilter);
       if (data.success && data.requests) {
         setApprovals(data.requests);
       }
@@ -95,15 +94,7 @@ export const WorkspaceOrchestratorStudio: React.FC = () => {
     if (!oldSymbol || !newSymbol) return;
     setRefactorLoading(true);
     try {
-      const res = await fetch('/api/orchestrator/refactor/plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          oldName: oldSymbol,
-          newName: newSymbol,
-        }),
-      });
-      const data = await res.json();
+      const data = await orchestratorApi.planRefactor(oldSymbol, newSymbol, targetScope);
       if (data.success) {
         setRefactorPlan(data.plan);
         if (data.changeset) {
@@ -121,16 +112,11 @@ export const WorkspaceOrchestratorStudio: React.FC = () => {
   const handleCreateChangeset = async () => {
     if (!newTitle) return;
     try {
-      const res = await fetch('/api/orchestrator/changesets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: newTitle,
-          description: newDesc,
-          branchName: newBranch || undefined,
-        }),
+      const data = await orchestratorApi.createChangeset({
+        title: newTitle,
+        description: newDesc,
+        branch_name: newBranch || undefined,
       });
-      const data = await res.json();
       if (data.success && data.changeset) {
         setNewTitle('');
         setNewDesc('');
@@ -147,12 +133,7 @@ export const WorkspaceOrchestratorStudio: React.FC = () => {
   const handleApplyChangeset = async (cid: string) => {
     setCommitLoading(true);
     try {
-      const res = await fetch('/api/orchestrator/changesets/apply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ changesetId: cid }),
-      });
-      const data = await res.json();
+      const data = await orchestratorApi.applyChangeset({ changeset_id: cid });
       setCommitResult(data);
       fetchChangesets();
     } catch (e) {
@@ -164,17 +145,11 @@ export const WorkspaceOrchestratorStudio: React.FC = () => {
 
   const handleDecideApproval = async (requestId: string, decision: 'APPROVED' | 'REJECTED') => {
     try {
-      const res = await fetch('/api/orchestrator/approvals/decide', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          requestId,
-          decision,
-          reason: operatorReason,
-          approver: 'lead_security_architect',
-        }),
-      });
-      const data = await res.json();
+      const data = await orchestratorApi.resolveApproval(
+        requestId,
+        decision === 'APPROVED',
+        operatorReason
+      );
       if (data.success) {
         fetchApprovals();
       }

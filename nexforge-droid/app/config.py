@@ -44,10 +44,17 @@ class Settings:
     auto_approve_safe_tools: bool = field(
         default_factory=lambda: os.getenv("AUTO_APPROVE_SAFE_TOOLS", "true").lower() == "true"
     )
+    demo_mode: bool = field(
+        default_factory=lambda: os.getenv("DEMO_MODE", "false").lower() in ("true", "1", "yes")
+    )
 
     def is_production(self) -> bool:
         """Returns True if the runtime is running in production mode."""
         return self.environment.lower() == "production"
+
+    def is_demo_mode(self) -> bool:
+        """Returns True if demo/mock data is explicitly permitted."""
+        return self.demo_mode
 
 
 # Global singleton instance

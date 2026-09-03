@@ -32,8 +32,16 @@ function getGeminiClient(): GoogleGenAI {
 // API Routes
 // -----------------------------------------------------------------------------
 
+const isDemoMode = process.env.DEMO_MODE === "true" || process.env.DEMO_MODE === "1";
+
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", service: "NexForge Droid Runtime Bridge", phase: 10 });
+  res.json({
+    status: "ok",
+    service: "NexForge Droid Runtime Bridge",
+    phase: 12,
+    demoMode: isDemoMode,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // Helper for invoking python api bridge safely with stdin payload

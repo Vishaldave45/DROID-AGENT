@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArchitectureGraph } from './components/ArchitectureGraph';
 import { SubsystemCard } from './components/SubsystemCard';
 import { TestResultsViewer } from './components/TestResultsViewer';
@@ -13,7 +13,9 @@ import { ContextBudgetStudio } from './components/ContextBudgetStudio';
 import { TaskPlannerStudio } from './components/TaskPlannerStudio';
 import { SafePatchingStudio } from './components/SafePatchingStudio';
 import { DiagnosticLoopStudio } from './components/DiagnosticLoopStudio';
-import { SUBSYSTEMS, PHASE_ROADMAP, INITIAL_TEST_RESULTS } from './data/architectureData';
+import { SUBSYSTEMS, PHASE_ROADMAP } from './data/architectureData';
+import { SubsystemInfo } from './types';
+import { systemApi, SystemManifestResponse } from './api';
 import {
   Cpu,
   ShieldCheck,
@@ -30,12 +32,31 @@ import {
   ListOrdered,
   FileEdit,
   Activity,
+  Server,
 } from 'lucide-react';
 
 export default function App() {
   const [activeView, setActiveView] = useState<
     'diagnostics' | 'patcher' | 'planner' | 'context' | 'repo' | 'storage' | 'agent' | 'tools' | 'llm' | 'architecture' | 'subsystems' | 'tests' | 'files' | 'roadmap'
   >('diagnostics');
+
+  const [subsystems, setSubsystems] = useState<SubsystemInfo[]>(SUBSYSTEMS);
+  const [manifest, setManifest] = useState<SystemManifestResponse | null>(null);
+
+  useEffect(() => {
+    // Dynamically fetch live system manifest and real subsystems from Python backend
+    systemApi.getManifest().then((data) => {
+      if (data && data.success) {
+        setManifest(data);
+      }
+    }).catch(console.error);
+
+    systemApi.getSubsystems().then((data) => {
+      if (data && data.subsystems && data.subsystems.length > 0) {
+        setSubsystems(data.subsystems);
+      }
+    }).catch(console.error);
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
@@ -49,8 +70,9 @@ export default function App() {
             <div>
               <div className="font-bold text-base text-white tracking-tight flex items-center gap-2">
                 NexForge Droid
-                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
-                  Phase 10 Live
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Live Dynamic Bridge
                 </span>
               </div>
               <p className="text-xs text-slate-400">Autonomous Software Engineering Agent Platform</p>
@@ -67,11 +89,11 @@ export default function App() {
               { id: 'repo', label: 'Repo & Code Graph', icon: Compass },
               { id: 'storage', label: 'State & SQLite DB', icon: Database },
               { id: 'agent', label: 'Agent Loop Studio', icon: PlayCircle },
-              { id: 'tools', label: 'Core Tools (18)', icon: Wrench },
+              { id: 'tools', label: `Core Tools (${manifest?.toolCount || 18})`, icon: Wrench },
               { id: 'llm', label: 'LLM & Gemini', icon: Bot },
               { id: 'architecture', label: 'Architecture', icon: Layers },
-              { id: 'subsystems', label: 'Subsystems (11)', icon: Cpu },
-              { id: 'tests', label: 'Verification (105/105)', icon: ShieldCheck },
+              { id: 'subsystems', label: `Subsystems (${subsystems.length})`, icon: Cpu },
+              { id: 'tests', label: 'Verification (105 Tests)', icon: ShieldCheck },
               { id: 'files', label: 'Filesystem', icon: Terminal },
               { id: 'roadmap', label: 'Roadmap', icon: Milestone },
             ].map((tab) => {
@@ -104,7 +126,9 @@ export default function App() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400 font-mono">Phase 10: Complete &amp; Verified</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400 font-mono">
+                Phase 10: Complete &amp; Dynamic Live Engine
+              </span>
             </div>
             <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight">
               Test / Observe / Fix Diagnostic Loop &amp; Autonomous Repair Engine
@@ -116,9 +140,9 @@ export default function App() {
 
           <div className="flex items-center gap-4 shrink-0">
             <div className="text-right">
-              <div className="text-xs text-slate-400">Total Unit Tests Passed</div>
+              <div className="text-xs text-slate-400">Runtime Subsystems</div>
               <div className="text-lg font-bold text-emerald-400 font-mono flex items-center gap-1 justify-end">
-                <CheckCircle2 className="w-4 h-4" /> 100% (105/105)
+                <CheckCircle2 className="w-4 h-4" /> {subsystems.length} Subsystems Online
               </div>
             </div>
           </div>
@@ -164,16 +188,16 @@ export default function App() {
         {activeView === 'architecture' && (
           <div className="space-y-8">
             <ArchitectureGraph />
-            <SubsystemCard subsystems={SUBSYSTEMS} />
+            <SubsystemCard subsystems={subsystems} />
           </div>
         )}
 
         {activeView === 'subsystems' && (
-          <SubsystemCard subsystems={SUBSYSTEMS} />
+          <SubsystemCard subsystems={subsystems} />
         )}
 
         {activeView === 'tests' && (
-          <TestResultsViewer initialResults={INITIAL_TEST_RESULTS} />
+          <TestResultsViewer />
         )}
 
         {activeView === 'files' && (
@@ -187,7 +211,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-400">
-        <p>NexForge Droid — Autonomous Software Engineering Platform • Phase 7 &amp; 8 Completed &amp; Verified</p>
+        <p>NexForge Droid — Autonomous Software Engineering Platform • Phase 10 Live Dynamic Integration</p>
       </footer>
     </div>
   );

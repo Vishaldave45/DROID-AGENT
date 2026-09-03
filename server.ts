@@ -33,8 +33,90 @@ function getGeminiClient(): GoogleGenAI {
 // -----------------------------------------------------------------------------
 
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", service: "NexForge Droid Runtime Bridge", phase: 2 });
+  res.json({ status: "ok", service: "NexForge Droid Runtime Bridge", phase: 10 });
 });
+
+// Helper for invoking python api bridge safely with stdin payload
+function runApiBridge(action: string, payload: any, res: express.Response) {
+  const pythonProc = exec(
+    `python3 ./nexforge-droid/run_api_bridge.py --action ${JSON.stringify(action)} --payload -`,
+    { cwd: process.cwd(), maxBuffer: 10 * 1024 * 1024 },
+    (error, stdout, stderr) => {
+      if (error && !stdout) {
+        return res.status(500).json({ success: false, error: stderr || error.message });
+      }
+      try {
+        const data = JSON.parse(stdout.trim());
+        res.json(data);
+      } catch (e: any) {
+        res.status(500).json({ success: false, error: "Failed to parse API bridge output", raw: stdout + "\n" + stderr });
+      }
+    }
+  );
+
+  if (pythonProc.stdin) {
+    pythonProc.stdin.write(JSON.stringify(payload || {}));
+    pythonProc.stdin.end();
+  }
+}
+
+// Dynamic Diagnostic Endpoints
+app.post("/api/diagnostics/parse", (req, res) => {
+  runApiBridge("diagnostics-parse", req.body, res);
+});
+
+app.post("/api/diagnostics/diagnose", (req, res) => {
+  runApiBridge("diagnostics-diagnose", req.body, res);
+});
+
+app.post("/api/diagnostics/loop", (req, res) => {
+  runApiBridge("diagnostics-loop", req.body, res);
+});
+
+// Dynamic Patcher & AST Syntax Endpoints
+app.post("/api/patcher/validate", (req, res) => {
+  runApiBridge("patcher-validate", req.body, res);
+});
+
+app.post("/api/patcher/diff", (req, res) => {
+  runApiBridge("patcher-diff", req.body, res);
+});
+
+app.post("/api/patcher/apply", (req, res) => {
+  runApiBridge("patcher-apply", req.body, res);
+});
+
+// Dynamic Task Planner & DAG Endpoints
+app.post("/api/planner/generate", (req, res) => {
+  runApiBridge("planner-generate", req.body, res);
+});
+
+app.post("/api/planner/replan", (req, res) => {
+  runApiBridge("planner-replan", req.body, res);
+});
+
+// Dynamic Granular Test Suite Endpoint
+app.post("/api/tests/detailed", (req, res) => {
+  runApiBridge("tests-detailed", req.body, res);
+});
+
+app.get("/api/tests/detailed", (req, res) => {
+  runApiBridge("tests-detailed", {}, res);
+});
+
+// System Manifest and Subsystems Dynamic Endpoints
+app.get("/api/system/manifest", (req, res) => {
+  runApiBridge("system-manifest", {}, res);
+});
+
+app.get("/api/system/subsystems", (req, res) => {
+  runApiBridge("system-subsystems", {}, res);
+});
+
+app.post("/api/context/budget", (req, res) => {
+  runApiBridge("context-budget", req.body, res);
+});
+
 
 // List all registered tools in python ToolRegistry
 app.get("/api/tools/list", (req, res) => {

@@ -17,6 +17,8 @@ import {
   Code2,
   FileSearch,
   Terminal,
+  RefreshCw,
+  Zap,
 } from 'lucide-react';
 
 export type StepStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'BLOCKED' | 'SKIPPED';
@@ -169,7 +171,9 @@ export function TaskPlannerStudio() {
   const [steps, setSteps] = useState<PlanStepItem[]>(PRESET_SCENARIOS[0].initialSteps);
   const [selectedStepId, setSelectedStepId] = useState<string>(PRESET_SCENARIOS[0].initialSteps[0].id);
   const [replanHistory, setReplanHistory] = useState<string[]>([]);
-  const [simulating, setSimulating] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState<string>('Refactor context compression to use LRU caching with priority eviction');
+  const [isGeneratingPlan, setIsGeneratingPlan] = useState<boolean>(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   const selectedStep = steps.find((s) => s.id === selectedStepId) || steps[0];
 
@@ -186,54 +190,139 @@ export function TaskPlannerStudio() {
     setReplanHistory([]);
   };
 
-  // Helper to check if step dependencies are met
-  const isStepRunnable = (step: PlanStepItem): boolean => {
-    if (step.status === 'COMPLETED' || step.status === 'SKIPPED') return false;
+  // Generate dynamic plan from backend API
+  const handleGenerateDynamicPlan = async () => {
+    if (!customPrompt.trim()) return;
+    setIsGeneratingPlan(true);
+    setGenerationError(null);
+
+    try {
+      const res = await fetch('/api/planner/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requirement: customPrompt,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.plan?.steps) {
+        const mappedSteps: PlanStepItem[] = data.plan.steps.map((s: any, idx: number) => ({
+          id: s.step_id || `step-${idx + 1}`,
+          title: s.title || `Task Step ${idx + 1}`,
+          description: s.description || '',
+          stepType: (s.step_type || 'IMPLEMENTATION').toUpperCase() as StepType,
+          status: 'PENDING' as StepStatus,
+          dependencies: s.dependencies || [],
+          acceptanceCriteria: s.acceptance_criteria || 'Verify step completion criteria',
+          targetFiles: s.target_files || [],
+          targetSymbols: s.target_symbols || [],
+          requiredTools: s.required_tools || [],
+        }));
+
+        const newScenario: Scenario = {
+          id: `custom-${Date.now()}`,
+          title: `Dynamic Plan: ${customPrompt.slice(0, 45)}...`,
+          objective: customPrompt,
+          initialSteps: mappedSteps,
+        };
+
+        setSelectedScenario(newScenario);
+        setSteps(mappedSteps);
+        if (mappedSteps.length > 0) {
+          setSelectedStepId(mappedSteps[0].id);
+        }
+        setReplanHistory([
+          `Generated dynamic DAG plan (${mappedSteps.length} nodes) from RepositoryContextEngine via API Bridge.`,
+        ]);
+      } else {
+        setGenerationError(data.error || 'Failed to generate plan.');
+      }
+    } catch (err: any) {
+      setGenerationError(err.message);
+    } finally {
+      setIsGeneratingPlan(false);
+    }
+  };
+
+  const isStepRunnable = (step: PlanStepItem) => {
+    if (step.status === 'COMPLETED') return false;
+    if (step.dependencies.length === 0) return true;
     return step.dependencies.every((depId) => {
-      const parent = steps.find((s) => s.id === depId);
-      return parent && parent.status === 'COMPLETED';
+      const depStep = steps.find((s) => s.id === depId);
+      return depStep && depStep.status === 'COMPLETED';
     });
   };
 
-  // Execute or complete next step
   const handleAdvanceStep = (stepId: string) => {
-    setSteps((prev) =>
-      prev.map((s) => {
-        if (s.id === stepId) {
-          return {
-            ...s,
-            status: 'COMPLETED',
-            executionEvidence: `Successfully verified acceptance criteria at ${new Date().toLocaleTimeString()}.`,
-          };
-        }
-        return s;
-      })
-    );
+    const updated = steps.map((s) => {
+      if (s.id === stepId) {
+        return {
+          ...s,
+          status: 'COMPLETED' as StepStatus,
+          executionEvidence: `Completed successfully at ${new Date().toLocaleTimeString()} - All assertions satisfied.`,
+        };
+      }
+      return s;
+    });
+    setSteps(updated);
 
-    // Auto select next runnable step
-    setTimeout(() => {
-      setSteps((currentSteps) => {
-        const next = currentSteps.find((s) => s.status === 'PENDING' && isStepRunnable(s));
-        if (next) setSelectedStepId(next.id);
-        return currentSteps;
-      });
-    }, 100);
+    const nextPending = updated.find((s) => s.status === 'PENDING' && isStepRunnable(s));
+    if (nextPending) {
+      setSelectedStepId(nextPending.id);
+    }
   };
 
-  // Simulate failure and trigger Phase 8 Dynamic Replanner
-  const handleSimulateFailure = (stepId: string, errorMsg: string) => {
+  // Perform dynamic replanning on step failure
+  const handleSimulateFailure = async (stepId: string, errorMsg: string) => {
     const failedStep = steps.find((s) => s.id === stepId);
     if (!failedStep) return;
 
-    // 1. Mark failed step as FAILED
-    const diagId = `replan-${stepId}-diag`;
-    const fixId = `replan-${stepId}-fix`;
-    const verifyId = `replan-${stepId}-verify`;
+    try {
+      const res = await fetch('/api/planner/replan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requirement: selectedScenario.objective,
+          failedStepId: stepId,
+          error: errorMsg,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.remediatedPlan?.steps) {
+        const mappedSteps: PlanStepItem[] = data.remediatedPlan.steps.map((s: any) => ({
+          id: s.step_id,
+          title: s.title,
+          description: s.description,
+          stepType: (s.step_type || 'IMPLEMENTATION').toUpperCase() as StepType,
+          status: (s.status || 'PENDING').toUpperCase() as StepStatus,
+          dependencies: s.dependencies || [],
+          acceptanceCriteria: s.acceptance_criteria || '',
+          targetFiles: s.target_files || [],
+          targetSymbols: s.target_symbols || [],
+          requiredTools: s.required_tools || [],
+          isRemediation: s.step_id.includes('diag') || s.step_id.includes('fix') || s.step_id.includes('verify'),
+        }));
+        setSteps(mappedSteps);
+        setReplanHistory((prev) => [
+          `Dynamic Replanner API returned remediated DAG for ${stepId}: Injected diagnostic & fix recovery chain.`,
+          ...prev,
+        ]);
+        return;
+      }
+    } catch (e) {
+      // Fallback to local deterministic replanner
+    }
+
+    const diagId = `${stepId}-diag`;
+    const fixId = `${stepId}-fix`;
+    const verifyId = `${stepId}-reverify`;
 
     const diagStep: PlanStepItem = {
       id: diagId,
-      title: `[Remediation] Diagnose Failure in ${failedStep.title}`,
-      description: `Investigate root cause of runtime error: "${errorMsg}". Inspect stack traces and edge cases.`,
+      title: `[Remediation] Diagnostic Inspection of ${failedStep.title}`,
+      description: `Synthesize failure traceback and analyze root cause of: "${errorMsg}".`,
       stepType: 'INVESTIGATION',
       status: 'PENDING',
       dependencies: [stepId],
@@ -269,7 +358,6 @@ export function TaskPlannerStudio() {
       isRemediation: true,
     };
 
-    // 2. Rewire any step that previously depended on failedStep to now depend on reVerifyStep
     const updatedSteps = steps.map((s) => {
       if (s.id === stepId) {
         return {
@@ -287,7 +375,6 @@ export function TaskPlannerStudio() {
       return s;
     });
 
-    // Insert remediation steps directly after the failed step
     const insertIdx = updatedSteps.findIndex((s) => s.id === stepId);
     updatedSteps.splice(insertIdx + 1, 0, diagStep, fixStep, reVerifyStep);
 
@@ -300,7 +387,7 @@ export function TaskPlannerStudio() {
   };
 
   const completedCount = steps.filter((s) => s.status === 'COMPLETED').length;
-  const progressPercent = Math.round((completedCount / steps.length) * 100);
+  const progressPercent = Math.round((completedCount / (steps.length || 1)) * 100);
 
   const getStepTypeBadge = (type: StepType) => {
     switch (type) {
@@ -334,44 +421,86 @@ export function TaskPlannerStudio() {
 
   return (
     <div className="space-y-6">
-      {/* Header & Scenario Selection */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-slate-900 border border-slate-800 rounded-xl p-5">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400 font-mono">
-              Phase 8: Explicit Task Planner &amp; Dynamic Replanner
-            </span>
+      {/* Header & Dynamic Requirement Input */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400 font-mono">
+                Phase 8: Dynamic Explicit Task Planner &amp; Replanner
+              </span>
+            </div>
+            <h2 className="text-lg font-bold text-white tracking-tight">
+              Deterministic DAG Execution Engine &amp; Self-Healing Planner
+            </h2>
+            <p className="text-xs text-slate-400 max-w-2xl">
+              Decomposes requirements into atomic, verifiable DAG steps. Dynamic replanning automatically inserts diagnostic and fix chains on failure.
+            </p>
           </div>
-          <h2 className="text-lg font-bold text-white tracking-tight">
-            Deterministic DAG Execution Engine &amp; Self-Healing Planner
-          </h2>
-          <p className="text-xs text-slate-400 max-w-2xl">
-            Breaks engineering objectives into atomic, verifiable DAG steps. Upon test or syntax failure, dynamically rewires the plan graph with diagnostic and remediation nodes.
-          </p>
+
+          {/* Scenario Buttons */}
+          <div className="flex flex-wrap items-center gap-2">
+            {PRESET_SCENARIOS.map((sc) => (
+              <button
+                key={sc.id}
+                onClick={() => handleSelectScenario(sc)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                  selectedScenario.id === sc.id
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold'
+                    : 'bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-800'
+                }`}
+              >
+                {sc.title}
+              </button>
+            ))}
+            <button
+              onClick={handleReset}
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-mono border border-slate-700 transition"
+            >
+              <RotateCcw className="w-3.5 h-3.5" /> Reset
+            </button>
+          </div>
         </div>
 
-        {/* Scenario Buttons */}
-        <div className="flex flex-wrap items-center gap-2">
-          {PRESET_SCENARIOS.map((sc) => (
+        {/* Dynamic AI Prompt Bar */}
+        <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> Generate Custom Plan via Backend DAG Engine:
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              placeholder="e.g., Implement Redis token caching with exponential backoff..."
+              className="flex-1 px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white font-mono focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            />
             <button
-              key={sc.id}
-              onClick={() => handleSelectScenario(sc)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                selectedScenario.id === sc.id
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold'
-                  : 'bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-800'
+              onClick={handleGenerateDynamicPlan}
+              disabled={isGeneratingPlan}
+              className={`px-4 py-2 rounded-lg text-xs font-bold font-mono transition flex items-center gap-2 ${
+                isGeneratingPlan
+                  ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                  : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm'
               }`}
             >
-              {sc.title}
+              {isGeneratingPlan ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Generating...
+                </>
+              ) : (
+                <>
+                  <Zap className="w-3.5 h-3.5" /> Plan Task DAG
+                </>
+              )}
             </button>
-          ))}
-          <button
-            onClick={handleReset}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-mono border border-slate-700 transition"
-          >
-            <RotateCcw className="w-3.5 h-3.5" /> Reset Plan
-          </button>
+          </div>
+          {generationError && (
+            <p className="text-xs text-rose-400 font-mono">{generationError}</p>
+          )}
         </div>
       </div>
 

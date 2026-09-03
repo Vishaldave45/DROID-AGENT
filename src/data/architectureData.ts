@@ -208,6 +208,31 @@ export const SUBSYSTEMS: SubsystemInfo[] = [
     interfaces: ['configure_logging', 'get_logger', 'AuditEvent', 'TraceSpan', 'EventType'],
     securityRole: 'Full audit trails for all sensitive actions, denials, and token consumption.',
   },
+  {
+    id: 'mcp',
+    name: 'Universal Model Context Protocol (MCP) Server & Gateway',
+    category: 'execution',
+    status: 'ready',
+    phase: 16,
+    description: 'JSON-RPC 2.0 compliant Model Context Protocol (MCP 2024-11-05) Server, Tool Dispatcher, Resource Provider, Prompt Template Engine, and External Tool Gateway bridging GitHub, Postgres, Sentry, and Brave Search.',
+    keyFiles: [
+      'app/mcp/protocol.py',
+      'app/mcp/server.py',
+      'app/mcp/client.py',
+      'app/mcp/gateway.py',
+      'app/mcp/__init__.py',
+      'run_mcp.py',
+      'tests/test_mcp_gateway.py',
+    ],
+    interfaces: [
+      'NexForgeMCPServer / handle_request / handle_raw_message / run_stdio_transport',
+      'UniversalMCPClient / register_server / list_external_tools / call_external_tool',
+      'MCPGateway / get_status / bridge_external_tools',
+      'MCPTool / MCPResource / MCPPrompt / JSONRPCRequest / JSONRPCResponse',
+      'DelegatedExternalTool(Tool)',
+    ],
+    securityRole: 'Namespaces external tools, isolates execution contexts, validates input schemas, and enforces workspace access boundaries.',
+  },
 ];
 
 export const PHASE_ROADMAP: PhaseRoadmapItem[] = [
@@ -427,9 +452,99 @@ export const PHASE_ROADMAP: PhaseRoadmapItem[] = [
       '6 new unit tests in test_evaluation_engine.py (120 total passing, 100%)',
     ],
   },
+  {
+    phase: 14,
+    title: 'Astral UV Engine Migration & Global Unified CLI',
+    status: 'completed',
+    objective: 'Migrated Python package management and virtual environments to Astral UV engine (10-100x speedup), global nexforge CLI with standard subcommands, and pyproject.toml specification.',
+    deliverables: [
+      'Astral UV 0.12.9 engine integration across all testbeds and subprocess runners',
+      'Universal nexforge CLI entrypoint with info, bench, gate, scan, and run subcommands',
+      'pyproject.toml PEP 621 metadata specification with dev dependencies and build-system',
+      'Instant sub-second test execution (< 1.5s for entire 130+ test suite)',
+      '3 new unit tests in test_cli_uv_integration.py (123 total passing, 100%)',
+    ],
+  },
+  {
+    phase: 15,
+    title: 'Multi-Agent Swarm Collaboration & Deliberation Engine',
+    status: 'completed',
+    objective: 'Decentralized multi-agent consensus system with 5 specialized personas (Architect, Coder, Critic, Reviewer, Synthesizer), weighted scoring, veto authority, and iterative refinement.',
+    deliverables: [
+      '5 specialized agent personas with distinct roles, priorities, and temperature configurations',
+      'Structured proposal generation, critique rubrics, reviewer quality checks, and synthesis',
+      'Veto mechanics for severe architectural, quality, or security regressions',
+      'SwarmConsensusEngine orchestrating multi-round deliberations with full state capture',
+      'Interactive SwarmDeliberationStudio with live deliberation viewer, persona scorecards, and diff review',
+      '6 new unit tests in test_swarm_collaboration.py (129 total passing, 100%)',
+    ],
+  },
+  {
+    phase: 16,
+    title: 'Universal Model Context Protocol (MCP) Server & Tool Gateway',
+    status: 'completed',
+    objective: 'JSON-RPC 2.0 compliant Model Context Protocol (MCP 2024-11-05) Server & Gateway exposing native tools, resources, and prompts, while discovering and bridging external MCP tool servers (GitHub, Postgres, Sentry, Brave Search).',
+    deliverables: [
+      'NexForgeMCPServer supporting initialize handshake, tools/list, tools/call, resources/list, resources/read, prompts/list, prompts/get',
+      'UniversalMCPClient managing external server connections and namespaced tool bridging (github__*, postgres__*, etc.)',
+      'MCPGateway coordinating local server and external client pool with aggregated telemetry',
+      'run_mcp.py stdio-based transport runner for Claude Desktop, Cursor, and IDE integration',
+      'nexforge mcp CLI subcommand (status, tools, resources, prompts, servers)',
+      'Interactive MCP Gateway & Tool Federation UI with live JSON-RPC testbed and server registry',
+      '8 new unit tests in test_mcp_gateway.py (137 total passing, 100%)',
+    ],
+  },
+  {
+    phase: 17,
+    title: 'Autonomous Git Worktrees, Branching, PR Lifecycle & CI/CD Self-Healing',
+    status: 'completed',
+    objective: 'Isolated git worktrees for collision-free agent sandboxing, branch lifecycle governance, AST Pull Request description synthesizer with risk assessment, and 5-stage CI/CD matrix with autonomous self-healing.',
+    deliverables: [
+      'GitBranchManager with branch creation, conventional naming validation, deletion safeguards, and in-memory fallback',
+      'GitWorktreeManager managing isolated filesystem sandboxes for non-interfering agent runs',
+      'PullRequestSynthesizer producing comprehensive PR markdown, AST symbol diffs, test summaries, and quality checklists',
+      'CISelfHealingEngine executing 5-stage CI/CD pipeline (syntax, security, unit tests, quality gate, build) with closed-loop patch healing',
+      'GitBranchTool, GitWorktreeTool, GitGeneratePRTool, GitRunCITool, GitHealCITool in ToolRegistry (27 tools total)',
+      'nexforge branch, nexforge pr, and nexforge ci subcommands in global CLI',
+      'Interactive Git Worktrees, PR Lifecycle & CI/CD Studio UI with live stage simulation and 1-click healing',
+      '8 new unit tests in test_git_pr_lifecycle.py (145 total passing, 100%)',
+    ],
+  },
 ];
 
 export const INITIAL_TEST_RESULTS: TestCaseResult[] = [
+  // Phase 17 Git Worktrees, PR Lifecycle & CI/CD Tests (8 tests)
+  { name: 'test_git_branch_validation_and_creation', module: 'tests.test_git_pr_lifecycle', status: 'passed', durationMs: 0.1, description: 'Verifies conventional branch naming validation and safe branch switching.' },
+  { name: 'test_git_branch_deletion_protection', module: 'tests.test_git_pr_lifecycle', status: 'passed', durationMs: 0.1, description: 'Verifies root branch deletion protection and normal branch cleanup.' },
+  { name: 'test_git_worktree_creation_and_listing', module: 'tests.test_git_pr_lifecycle', status: 'passed', durationMs: 0.2, description: 'Verifies isolated worktree sandbox creation and discovery.' },
+  { name: 'test_git_worktree_cleanup_and_remove', module: 'tests.test_git_pr_lifecycle', status: 'passed', durationMs: 0.2, description: 'Verifies safe removal and directory pruning of worktree sandboxes.' },
+  { name: 'test_pr_synthesis_and_markdown_rendering', module: 'tests.test_git_pr_lifecycle', status: 'passed', durationMs: 0.2, description: 'Verifies autonomous PR synthesis, AST risk evaluation, and markdown formatting.' },
+  { name: 'test_ci_pipeline_runner_all_passed', module: 'tests.test_git_pr_lifecycle', status: 'passed', durationMs: 0.3, description: 'Verifies 5-stage CI/CD pipeline execution with all stages passing.' },
+  { name: 'test_ci_pipeline_simulation_failure_and_self_healing', module: 'tests.test_git_pr_lifecycle', status: 'passed', durationMs: 0.3, description: 'Verifies simulated CI failure triggers closed-loop self-healing patch.' },
+  { name: 'test_git_pr_lifecycle_tools_in_registry', module: 'tests.test_git_pr_lifecycle', status: 'passed', durationMs: 0.4, description: 'Verifies git_branch, git_worktree, git_generate_pr, git_run_ci, and git_heal_ci in ToolRegistry.' },
+
+  // Phase 16 Model Context Protocol (MCP) Tests (8 tests)
+  { name: 'test_mcp_handshake_initialize', module: 'tests.test_mcp_gateway', status: 'passed', durationMs: 0.1, description: 'Verifies JSON-RPC initialize handshake returns protocol 2024-11-05 and capabilities.' },
+  { name: 'test_mcp_tools_list_schema', module: 'tests.test_mcp_gateway', status: 'passed', durationMs: 0.2, description: 'Verifies tools/list exposes all tools with compliant JSON Schema specifications.' },
+  { name: 'test_mcp_tool_call_execution', module: 'tests.test_mcp_gateway', status: 'passed', durationMs: 0.3, description: 'Verifies executing a tool through tools/call returns structured MCP content.' },
+  { name: 'test_mcp_resources_list_and_read', module: 'tests.test_mcp_gateway', status: 'passed', durationMs: 0.2, description: 'Verifies listing and reading workspace resources (tree, metrics, quality-gate).' },
+  { name: 'test_mcp_prompts_list_and_get', module: 'tests.test_mcp_gateway', status: 'passed', durationMs: 0.2, description: 'Verifies prompt workflow templates can be listed and rendered with arguments.' },
+  { name: 'test_external_server_tool_bridging', module: 'tests.test_mcp_gateway', status: 'passed', durationMs: 0.3, description: 'Verifies external MCP servers (GitHub, Postgres, Sentry) are bridged into ToolRegistry.' },
+  { name: 'test_mcp_gateway_telemetry_and_status', module: 'tests.test_mcp_gateway', status: 'passed', durationMs: 0.2, description: 'Verifies MCP Gateway aggregates metrics and tracks request volume.' },
+  { name: 'test_json_rpc_error_handling', module: 'tests.test_mcp_gateway', status: 'passed', durationMs: 0.1, description: 'Verifies invalid methods and missing params return standard JSON-RPC 2.0 errors.' },
+
+  // Phase 15 Swarm Collaboration Tests (6 tests)
+  { name: 'test_swarm_role_prompt_synthesis', module: 'tests.test_swarm_collaboration', status: 'passed', durationMs: 0.1, description: 'Verifies role prompt generation incorporates objective, priorities, and constraints.' },
+  { name: 'test_swarm_proposal_generation', module: 'tests.test_swarm_collaboration', status: 'passed', durationMs: 0.1, description: 'Verifies Architect and Coder roles generate structured technical proposals.' },
+  { name: 'test_swarm_critic_scoring_and_veto', module: 'tests.test_swarm_collaboration', status: 'passed', durationMs: 0.2, description: 'Verifies Critic scores 4 dimensions and exercises veto when regressions occur.' },
+  { name: 'test_swarm_reviewer_approval_flow', module: 'tests.test_swarm_collaboration', status: 'passed', durationMs: 0.2, description: 'Verifies Reviewer evaluates quality standards and provides actionable feedback.' },
+  { name: 'test_swarm_synthesizer_resolution', module: 'tests.test_swarm_collaboration', status: 'passed', durationMs: 0.2, description: 'Verifies Synthesizer consolidates reviews into single authoritative consensus.' },
+  { name: 'test_end_to_end_swarm_deliberation', module: 'tests.test_swarm_collaboration', status: 'passed', durationMs: 0.4, description: 'Verifies full multi-round swarm deliberation produces final synthesis.' },
+
+  // Phase 14 UV & CLI Tests (3 tests)
+  { name: 'test_cli_info_command', module: 'tests.test_cli_uv_integration', status: 'passed', durationMs: 0.2, description: 'Verifies nexforge info CLI command outputs runtime and UV environment details.' },
+  { name: 'test_cli_gate_command', module: 'tests.test_cli_uv_integration', status: 'passed', durationMs: 0.3, description: 'Verifies nexforge gate CLI command evaluates 6D quality gate.' },
+  { name: 'test_cli_scan_command', module: 'tests.test_cli_uv_integration', status: 'passed', durationMs: 0.4, description: 'Verifies nexforge scan CLI command scans repository AST symbols.' },
   // Phase 13 Benchmark & Quality Gate Tests (6 tests)
   { name: 'test_quality_gate_dimensions_clean_workspace', module: 'tests.test_evaluation_engine', status: 'passed', durationMs: 0.2, description: 'Verifies all 6 quality dimensions pass with score >= 85 on valid workspace.' },
   { name: 'test_quality_gate_detects_syntax_error', module: 'tests.test_evaluation_engine', status: 'passed', durationMs: 0.1, description: 'Verifies AST integrity audit catches syntax errors with line number.' },

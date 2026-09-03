@@ -374,7 +374,7 @@ export const PHASES_DOCUMENTATION: PhaseDoc[] = [
     number: 15,
     title: "Multi-Agent Swarm Collaboration & Autonomous Peer Review",
     category: "Swarm Intelligence",
-    status: "Next Phase",
+    status: "Completed",
     summary: "Multi-agent consensus engine coordinating Architect, Coder, Reviewer, Critic, and Synthesizer personas with automated peer reviews and quorum voting.",
     keyModules: [
       "app/agent/swarm.py",
@@ -393,6 +393,111 @@ export const PHASES_DOCUMENTATION: PhaseDoc[] = [
     architectureDetails: "Autonomous swarm consensus framework where specialized agent roles collaborate: Architect designs plan, Coder implements diffs, Reviewer checks security/contracts, Critic finds boundary bugs, and Synthesizer tabulates quorum consensus.",
     verificationSteps: [
       "Run multi-agent deliberation simulation and verify quorum voting determines consensus decision"
+    ]
+  },
+  {
+    id: "phase-16",
+    number: 16,
+    title: "Universal Model Context Protocol (MCP) Server & Gateway",
+    category: "Integration",
+    status: "Completed",
+    summary: "JSON-RPC 2.0 compliant Model Context Protocol (MCP 2024-11-05) Server, Tool Dispatcher, Resource Provider, Prompt Template Engine, and External Tool Gateway bridging GitHub, Postgres, Sentry, and Brave Search.",
+    keyModules: [
+      "app/mcp/protocol.py",
+      "app/mcp/server.py",
+      "app/mcp/client.py",
+      "app/mcp/gateway.py",
+      "run_mcp.py",
+      "src/components/MCPGatewayStudio.tsx"
+    ],
+    cliExamples: [
+      "nexforge mcp status",
+      "nexforge mcp tools",
+      "nexforge mcp servers",
+      "python3 run_mcp.py serve"
+    ],
+    apiEndpoints: [
+      "GET /api/mcp/status",
+      "GET /api/mcp/tools",
+      "GET /api/mcp/servers",
+      "GET /api/mcp/resources",
+      "POST /api/mcp/call",
+      "POST /api/mcp/jsonrpc"
+    ],
+    architectureDetails: "Dual-role Model Context Protocol hub enabling Claude Desktop, Cursor, and IDEs to drive NexForge tools via stdio, while federating external tool servers into the autonomous agent loop.",
+    verificationSteps: [
+      "Verify JSON-RPC 2.0 initialize handshake returns protocol 2024-11-05 and capabilities",
+      "Run tools/list and confirm all 28 native tools have valid JSON Schema specifications",
+      "Execute external tool call through gateway federation client"
+    ]
+  },
+  {
+    id: "phase-17",
+    number: 17,
+    title: "Autonomous Git Worktrees, Branching, PR Lifecycle & CI/CD Self-Healing Sandbox",
+    category: "DevOps & CI/CD",
+    status: "Completed",
+    summary: "Isolated git worktree checkouts, branch governance, automatic pull request markdown synthesis with AST risk metrics, and simulated CI/CD test runner with closed-loop self-healing repair.",
+    keyModules: [
+      "app/git/worktree.py",
+      "app/git/branch.py",
+      "app/git/pr_generator.py",
+      "app/git/ci_pipeline.py",
+      "app/tools/pr_tools.py",
+      "src/components/GitPRStudio.tsx"
+    ],
+    cliExamples: [
+      "nexforge branch list",
+      "nexforge branch create feat/auth-tokens",
+      "nexforge pr --title 'feat: add session token validation'",
+      "nexforge ci run",
+      "nexforge ci heal",
+      "uv run --no-project python3 ./nexforge-droid/run_tests.py"
+    ],
+    apiEndpoints: [
+      "GET /api/git/branches",
+      "POST /api/git/create-branch",
+      "POST /api/git/switch-branch",
+      "GET /api/git/worktrees",
+      "POST /api/git/create-worktree",
+      "POST /api/git/remove-worktree",
+      "POST /api/git/generate-pr",
+      "POST /api/git/run-ci",
+      "POST /api/git/heal-ci"
+    ],
+    architectureDetails: "Safely sandboxes agent code modifications using isolated Git worktrees and branches. Automatically generates comprehensive Pull Request descriptions with diff breakdowns, conventional commit titles, and risk ratings. Orchestrates a 5-stage CI/CD pipeline (syntax, security, tests, quality gate, build) with closed-loop self-healing that automatically generates and applies fix patches when CI fails.",
+    verificationSteps: [
+      "Create an isolated git branch and detached worktree sandbox",
+      "Synthesize complete Pull Request markdown from staged changes",
+      "Simulate CI/CD pipeline failure and verify automated self-healing recovers pipeline to green",
+      "Verify 145/145 unit tests passing across all 17 phases"
+    ]
+  },
+  {
+    id: "phase-18",
+    number: 18,
+    title: "Autonomous Code Review Agent, Security Vulnerability Scanner & SARIF Export",
+    category: "Security & Governance",
+    status: "Active",
+    summary: "Dedicated Code Review agent applying OWASP Top 10 heuristics, AST data-flow taint analysis, style alignment, and industry-standard SARIF export for GitHub Security & GitLab CI.",
+    keyModules: [
+      "app/review/analyzer.py",
+      "app/review/sarif.py",
+      "app/review/security_scanner.py",
+      "app/tools/review_tools.py"
+    ],
+    cliExamples: [
+      "nexforge review run",
+      "nexforge review scan --sarif report.sarif"
+    ],
+    apiEndpoints: [
+      "POST /api/review/scan",
+      "GET /api/review/sarif"
+    ],
+    architectureDetails: "Static analysis and taint engine analyzing PR diffs for injection flaws, secret leakage, unhandled exceptions, and dead code, exporting structured SARIF reports.",
+    verificationSteps: [
+      "Audit sample code against SQL injection and insecure deserialization patterns",
+      "Export RFC-compliant SARIF v2.1.0 document"
     ]
   }
 ];

@@ -203,6 +203,216 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 0 if final_state.status == TaskStatus.COMPLETED else 1
 
 
+def cmd_mcp(args: argparse.Namespace) -> int:
+    """Model Context Protocol (MCP) Server and Gateway CLI commands (Phase 16)."""
+    from app.mcp import MCPGateway
+
+    gateway = MCPGateway(workspace_root=BASE_DIR)
+    action = args.mcp_action or "status"
+
+    if action == "status":
+        status = gateway.get_status()
+        if args.json:
+            print(json.dumps(status, indent=2))
+        else:
+            print("=" * 60)
+            print("  NexForge MCP Gateway & Universal Server (Phase 16)")
+            print("=" * 60)
+            print(f"  Protocol Version   : {status['protocol_version']}")
+            print(f"  Status             : {status['gateway_status']}")
+            print(f"  Local Tools        : {status['local_tools_count']}")
+            print(f"  External Servers   : {status['external_servers_count']}")
+            print(f"  Total Active Tools : {status['total_available_tools']}")
+            print("=" * 60)
+        return 0
+
+    elif action == "tools":
+        resp = gateway.handle_request({"id": 1, "method": "tools/list", "params": {}})
+        tools = resp.result.get("tools", [])
+        if args.json:
+            print(json.dumps(tools, indent=2))
+        else:
+            print(f"Exposed MCP Tools ({len(tools)}):")
+            for t in tools:
+                print(f"  - {t['name']}: {t.get('description', '')[:70]}...")
+        return 0
+
+    elif action == "resources":
+        resp = gateway.handle_request({"id": 1, "method": "resources/list", "params": {}})
+        res = resp.result.get("resources", [])
+        if args.json:
+            print(json.dumps(res, indent=2))
+        else:
+            print(f"Exposed MCP Resources ({len(res)}):")
+            for r in res:
+                print(f"  - {r['uri']} ({r['name']})")
+        return 0
+
+    elif action == "prompts":
+        resp = gateway.handle_request({"id": 1, "method": "prompts/list", "params": {}})
+        prompts = resp.result.get("prompts", [])
+        if args.json:
+            print(json.dumps(prompts, indent=2))
+        else:
+            print(f"Exposed MCP Prompts ({len(prompts)}):")
+            for p in prompts:
+                print(f"  - {p['name']}: {p.get('description', '')}")
+        return 0
+
+    elif action == "servers":
+        servers = gateway.client.list_servers()
+        if args.json:
+            print(json.dumps(servers, indent=2))
+        else:
+            print(f"Connected External MCP Servers ({len(servers)}):")
+            for s in servers:
+                print(f"  - [{s['server_id']}] {s['name']} ({s['transport']}) - {s['tools_count']} tools")
+        return 0
+
+    return 0
+
+
+def cmd_branch(args: argparse.Namespace) -> int:
+    """Manages Git branches."""
+    from app.git.branch import GitBranchManager
+    mgr = GitBranchManager(repo_path=BASE_DIR)
+    action = getattr(args, "branch_action", "list") or "list"
+    name = getattr(args, "name", None)
+
+    if action == "list":
+        branches = [b.to_dict() for b in mgr.list_branches()]
+        if args.json:
+            print(json.dumps(branches, indent=2))
+        else:
+            print("Git Branches:")
+            for b in branches:
+                curr = "*" if b.get("is_current") else " "
+                print(f"  {curr} {b['name']:<30} [{b['commit_hash']}] {b.get('upstream') or ''}")
+        return 0
+
+    elif action == "create":
+        if not name:
+            print("Error: Branch name required for create action.", file=sys.stderr)
+            return 1
+        try:
+            b = mgr.create_branch(name, switch=True)
+            if args.json:
+                print(json.dumps(b.to_dict(), indent=2))
+            else:
+                print(f"Successfully created and switched to branch: {name}")
+            return 0
+        except Exception as e:
+            print(f"Error creating branch: {e}", file=sys.stderr)
+            return 1
+
+    return 0
+
+
+def cmd_pr(args: argparse.Namespace) -> int:
+    """Synthesizes Pull Request descriptions."""
+    from app.git.pr_generator import PullRequestSynthesizer
+    synthesizer = PullRequestSynthesizer(repo_path=BASE_DIR)
+    title = getattr(args, "title", None)
+    branch = getattr(args, "branch", "feat/mcp-gateway")
+    spec = synthesizer.synthesize_pr(title=title, branch_source=branch)
+    if args.json:
+        print(json.dumps(spec.to_dict(), indent=2))
+    else:
+        print(spec.markdown_body)
+    return 0
+
+
+def cmd_ci(args: argparse.Namespace) -> int:
+    """Executes CI/CD pipeline matrix and self-healing."""
+    from app.git.ci_pipeline import CISelfHealingEngine
+    engine = CISelfHealingEngine(repo_path=BASE_DIR)
+    action = getattr(args, "ci_action", "run") or "run"
+    branch = getattr(args, "branch", "main")
+
+    if action == "run":
+        sim_fail = getattr(args, "simulate_failure", None)
+        pipeline = engine.run_pipeline(branch=branch, simulate_failure_stage=sim_fail)
+        if args.json:
+            print(json.dumps(pipeline.to_dict(), indent=2))
+        else:
+            print(f"CI/CD Pipeline: {pipeline.pipeline_id} ({pipeline.status.upper()})")
+            for s in pipeline.stages:
+                icon = "PASS" if s.status == "passed" else ("FAIL" if s.status == "failed" else "HEAL")
+                print(f"  [{icon}] {s.name:<32} ({s.duration_ms:.1f}ms)")
+        return 0 if pipeline.status in ("passed", "healed") else 1
+
+    elif action == "heal":
+        stage = getattr(args, "stage", "unit_tests")
+        failed = engine.run_pipeline(branch=branch, simulate_failure_stage=stage)
+        healed = engine.heal_pipeline(failed)
+        if args.json:
+            print(json.dumps(healed.to_dict(), indent=2))
+        else:
+            print(f"CI/CD Self-Healing: {healed.pipeline_id} ({healed.status.upper()})")
+            print(f"  Repairs Applied: {healed.healing_attempts}")
+            print(f"  Healed Patch:\n{healed.healed_patch}")
+        return 0
+
+    return 0
+
+
+def cmd_review(args: argparse.Namespace) -> int:
+    """Performs static code review, AST security audit, and SARIF export (Phase 18)."""
+    from app.review.analyzer import CodeQualityAnalyzer
+    from app.review.sarif import SARIFExporter
+    from app.review.security_scanner import ASTSecurityScanner
+
+    action = getattr(args, "review_action", "scan") or "scan"
+    target_path = getattr(args, "path", ".") or "."
+    out_sarif = getattr(args, "sarif", None)
+
+    scanner = ASTSecurityScanner(workspace_root=BASE_DIR)
+    analyzer = CodeQualityAnalyzer(workspace_root=BASE_DIR)
+    exporter = SARIFExporter(workspace_root=BASE_DIR)
+
+    if action == "audit":
+        vulns = scanner.scan_directory(directory=target_path)
+        if out_sarif:
+            exporter.export_to_file(out_sarif, vulnerabilities=vulns)
+        if args.json:
+            print(json.dumps([v.to_dict() for v in vulns], indent=2))
+        else:
+            print(f"NexForge Security Audit: {len(vulns)} issues detected in '{target_path}'")
+            for v in vulns:
+                print(f"  [{v.severity:<8}] {v.name} ({v.cwe_id}) at {v.file_path}:{v.line_number}")
+                print(f"           Snippet: {v.code_snippet}")
+        return 0 if not any(v.severity in ("CRITICAL", "HIGH") for v in vulns) else 1
+
+    elif action == "sarif":
+        vulns = scanner.scan_directory(directory=target_path)
+        report = analyzer.run_review(directory=target_path)
+        sarif_doc = exporter.generate_sarif(vulnerabilities=vulns, findings=report.findings)
+        if out_sarif:
+            written = exporter.export_to_file(out_sarif, vulnerabilities=vulns, findings=report.findings)
+            print(f"Exported SARIF v2.1.0 report ({len(sarif_doc['runs'][0]['results'])} results) to {written}")
+        else:
+            print(json.dumps(sarif_doc, indent=2))
+        return 0
+
+    else:  # scan
+        report = analyzer.run_review(directory=target_path)
+        vulns = scanner.scan_directory(directory=target_path)
+        if out_sarif:
+            exporter.export_to_file(out_sarif, vulnerabilities=vulns, findings=report.findings)
+        if args.json:
+            data = report.to_dict()
+            data["vulnerabilities"] = [v.to_dict() for v in vulns]
+            print(json.dumps(data, indent=2))
+        else:
+            print(f"NexForge Code Review Report [{report.report_id}] - Quality Score: {report.quality_score}/100 ({report.status})")
+            print(f"  Files Analyzed: {report.total_files_analyzed} | Findings: {report.total_findings} | Vulnerabilities: {len(vulns)}")
+            for f in report.findings[:8]:
+                print(f"  [{f.severity:<7}] {f.category} in {f.file_path}:{f.line_number} -> {f.message}")
+            if len(report.findings) > 8:
+                print(f"  ... and {len(report.findings) - 8} more findings.")
+        return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     common_parser = argparse.ArgumentParser(add_help=False)
     common_parser.add_argument("--json", action="store_true", help="Output machine-readable JSON")
@@ -242,6 +452,38 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--max-iterations", type=int, default=5, help="Maximum iterations")
     p_run.add_argument("--mock-scenario", default="math_repair", help="Mock scenario for deterministic test")
     p_run.set_defaults(func=cmd_run)
+
+    # mcp
+    p_mcp = subparsers.add_parser("mcp", help="Model Context Protocol (MCP) server, gateway, and external tools", parents=[common_parser])
+    p_mcp.add_argument("mcp_action", nargs="?", choices=["status", "tools", "resources", "prompts", "servers"], default="status", help="MCP action to perform")
+    p_mcp.set_defaults(func=cmd_mcp)
+
+    # branch
+    p_branch = subparsers.add_parser("branch", help="Autonomous Git branching operations", parents=[common_parser])
+    p_branch.add_argument("branch_action", nargs="?", choices=["list", "create"], default="list", help="Branch action")
+    p_branch.add_argument("name", nargs="?", help="Branch name for create action")
+    p_branch.set_defaults(func=cmd_branch)
+
+    # pr
+    p_pr = subparsers.add_parser("pr", help="Synthesize GitHub-ready Pull Request markdown", parents=[common_parser])
+    p_pr.add_argument("--title", help="Custom PR title")
+    p_pr.add_argument("--branch", default="feat/mcp-gateway", help="Source feature branch")
+    p_pr.set_defaults(func=cmd_pr)
+
+    # ci
+    p_ci = subparsers.add_parser("ci", help="Run CI/CD matrix and self-healing engine", parents=[common_parser])
+    p_ci.add_argument("ci_action", nargs="?", choices=["run", "heal"], default="run", help="CI action")
+    p_ci.add_argument("--branch", default="main", help="Branch for CI run")
+    p_ci.add_argument("--simulate-failure", choices=["syntax_ast", "security_audit", "unit_tests", "quality_gate", "build_packaging"], help="Simulate a stage failure")
+    p_ci.add_argument("--stage", default="unit_tests", help="Stage to heal")
+    p_ci.set_defaults(func=cmd_ci)
+
+    # review (Phase 18)
+    p_rev = subparsers.add_parser("review", help="Code review, AST security vulnerability scanner, and SARIF export", parents=[common_parser])
+    p_rev.add_argument("review_action", nargs="?", choices=["scan", "audit", "sarif"], default="scan", help="Review action (scan, audit, or sarif)")
+    p_rev.add_argument("--path", default=".", help="Target file or directory path")
+    p_rev.add_argument("--sarif", help="File path to save SARIF v2.1.0 output")
+    p_rev.set_defaults(func=cmd_review)
 
     return parser
 

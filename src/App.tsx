@@ -18,6 +18,8 @@ import { LiveStreamingConsole } from './components/LiveStreamingConsole';
 import { EvaluationBenchmarkStudio } from './components/EvaluationBenchmarkStudio';
 import { UvCliDistributionStudio } from './components/UvCliDistributionStudio';
 import { SwarmCollaborationStudio } from './components/SwarmCollaborationStudio';
+import { MCPGatewayStudio } from './components/MCPGatewayStudio';
+import { GitPRStudio } from './components/GitPRStudio';
 import { PhaseDocsStudio } from './components/PhaseDocsStudio';
 import { PHASE_ROADMAP } from './data/architectureData';
 import { SystemProvider, useSystem } from './context/SystemContext';
@@ -38,6 +40,7 @@ import {
   FileEdit,
   Activity,
   GitPullRequest,
+  GitBranch,
   Radio,
   FlaskConical,
   Zap,
@@ -45,10 +48,13 @@ import {
   BookOpen,
   Users,
   Package,
+  Network,
 } from 'lucide-react';
 
 function MainApp() {
   const [activeView, setActiveView] = useState<
+    | 'git-pr'
+    | 'mcp'
     | 'uv-cli'
     | 'swarm'
     | 'docs'
@@ -69,7 +75,7 @@ function MainApp() {
     | 'tests'
     | 'files'
     | 'roadmap'
-  >('uv-cli');
+  >('git-pr');
 
   const { manifest, subsystems, demoMode, health } = useSystem();
 
@@ -116,9 +122,11 @@ function MainApp() {
           {/* Navigation Bar */}
           <nav className="flex items-center gap-1 overflow-x-auto max-w-[65%] py-2">
             {[
+              { id: 'git-pr', label: 'Git Worktrees & CI (Phase 17)', icon: GitBranch, highlight: true },
+              { id: 'mcp', label: 'MCP Gateway (Phase 16)', icon: Network, highlight: true },
               { id: 'uv-cli', label: 'UV & CLI Packaging (Phase 14)', icon: Terminal, highlight: true },
               { id: 'swarm', label: 'Swarm Consensus (Phase 15)', icon: Users, highlight: true },
-              { id: 'docs', label: 'Phase Docs (1-15)', icon: BookOpen, highlight: true },
+              { id: 'docs', label: 'Phase Docs (1-17)', icon: BookOpen, highlight: true },
               { id: 'evaluation', label: 'Evaluation & Benchmarks (Phase 13)', icon: Award, highlight: true },
               { id: 'orchestrator', label: 'Orchestrator (Phase 11)', icon: GitPullRequest },
               { id: 'streaming', label: 'Live Stream (Phase 12)', icon: Radio },
@@ -129,11 +137,11 @@ function MainApp() {
               { id: 'repo', label: 'Repo & Code Graph', icon: Compass },
               { id: 'storage', label: 'State & SQLite DB', icon: Database },
               { id: 'agent', label: 'Agent Loop Studio', icon: PlayCircle },
-              { id: 'tools', label: `Core Tools (${manifest?.toolCount || 22})`, icon: Wrench },
+              { id: 'tools', label: `Core Tools (${manifest?.toolCount || 27})`, icon: Wrench },
               { id: 'llm', label: 'LLM & Gemini', icon: Bot },
               { id: 'architecture', label: 'Architecture', icon: Layers },
               { id: 'subsystems', label: `Subsystems (${subsystems.length})`, icon: Cpu },
-              { id: 'tests', label: 'Verification (129 Tests)', icon: ShieldCheck },
+              { id: 'tests', label: 'Verification (145 Tests)', icon: ShieldCheck },
               { id: 'files', label: 'Filesystem', icon: Package },
               { id: 'roadmap', label: 'Roadmap', icon: Milestone },
             ].map((tab) => {
@@ -180,14 +188,14 @@ function MainApp() {
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400 font-mono">
-                Phase 14 &amp; Phase 15: UV Engine, Global CLI &amp; Swarm Consensus Active
+                Phase 17: Autonomous Git Worktrees, Branching, PR Lifecycle &amp; CI/CD Active
               </span>
             </div>
             <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-              Astral UV Full-Stack Engine, Global NexForge CLI &amp; Autonomous Multi-Agent Swarm
+              Isolated Git Worktree Sandboxes, AST Pull Request Synthesizer &amp; Closed-Loop CI/CD Healing
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 max-w-3xl leading-relaxed">
-              Complete migration of the entire platform to Astral UV package manager, global <code className="text-emerald-400 font-mono">nexforge</code> CLI distribution, interactive multi-phase architectural documentation, and Phase 15 multi-agent swarm collaboration with 129 verified unit tests.
+              Complete autonomous developer lifecycle integration: isolated git worktree sandboxes for zero-collision task execution, AST-backed Pull Request synthesis with risk audits, and a 5-stage CI/CD runner featuring autonomous surgical self-healing.
             </p>
           </div>
 
@@ -195,13 +203,17 @@ function MainApp() {
             <div className="text-right">
               <div className="text-xs text-slate-400">Runtime Status</div>
               <div className="text-lg font-bold text-emerald-400 font-mono flex items-center gap-1 justify-end">
-                <CheckCircle2 className="w-4 h-4" /> 129/129 Tests Passing
+                <CheckCircle2 className="w-4 h-4" /> 145/145 Tests Passing
               </div>
             </div>
           </div>
         </section>
 
         {/* Dynamic View Sections */}
+        {activeView === 'git-pr' && <GitPRStudio />}
+
+        {activeView === 'mcp' && <MCPGatewayStudio />}
+
         {activeView === 'uv-cli' && <UvCliDistributionStudio />}
 
         {activeView === 'swarm' && <SwarmCollaborationStudio />}
@@ -252,7 +264,7 @@ function MainApp() {
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-400">
-        <p>NexForge Droid — Autonomous Software Engineering Platform • Phase 11 &amp; 12 Autonomous Orchestration</p>
+        <p>NexForge Droid — Autonomous Software Engineering Platform • Phase 16 Universal MCP Gateway &amp; Federation Active</p>
       </footer>
     </div>
   );

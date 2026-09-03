@@ -83,7 +83,41 @@ def get_default_tool_registry(
     registry.register(GeneratePullRequestTool())
     registry.register(RequestHumanApprovalTool())
 
-    # 8. Agent Orchestration Tools
+    # 8. Git Worktrees, Branching & CI/CD Lifecycle Tools (Phase 17)
+    from app.tools.pr_tools import (
+        GitBranchTool,
+        GitGeneratePRTool,
+        GitHealCITool,
+        GitRunCITool,
+        GitWorktreeTool,
+    )
+    registry.register(GitBranchTool())
+    registry.register(GitWorktreeTool())
+    registry.register(GitGeneratePRTool())
+    registry.register(GitRunCITool())
+    registry.register(GitHealCITool())
+
+    # 9. Code Review, Security Audit & SARIF Tools (Phase 18)
+    from app.tools.review_tools import (
+        CodeReviewScanTool,
+        SarifExportTool,
+        SecurityAuditTool,
+    )
+    registry.register(CodeReviewScanTool())
+    registry.register(SecurityAuditTool())
+    registry.register(SarifExportTool())
+
+    # 10. Autonomous Test Synthesis & Mutation Testing Tools (Phase 19)
+    from app.tools.test_gen_tools import (
+        CoverageAuditTool,
+        RunMutationTestTool,
+        SynthesizeTestsTool,
+    )
+    registry.register(SynthesizeTestsTool())
+    registry.register(RunMutationTestTool())
+    registry.register(CoverageAuditTool())
+
+    # 11. Agent Orchestration Tools
     if include_agent_tools:
         from app.planner.tools import GeneratePlanTool, ReplanTaskTool
         registry.register(FinishTaskTool())
@@ -122,6 +156,17 @@ __all__ = [
     "FinishTaskTool",
     "GeneratePlanTool",
     "ReplanTaskTool",
+    "GitBranchTool",
+    "GitWorktreeTool",
+    "GitGeneratePRTool",
+    "GitRunCITool",
+    "GitHealCITool",
+    "CodeReviewScanTool",
+    "SecurityAuditTool",
+    "SarifExportTool",
+    "SynthesizeTestsTool",
+    "RunMutationTestTool",
+    "CoverageAuditTool",
     "get_default_tool_registry",
 ]
 

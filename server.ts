@@ -838,6 +838,91 @@ app.post("/api/debugger/breakpoints", (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
+// Model Context Protocol (MCP) Endpoints (Phase 16)
+// -----------------------------------------------------------------------------
+app.get("/api/mcp/status", (req, res) => {
+  runApiBridge("mcp-status", {}, res);
+});
+
+app.get("/api/mcp/tools", (req, res) => {
+  runApiBridge("mcp-tools", {}, res);
+});
+
+app.get("/api/mcp/resources", (req, res) => {
+  runApiBridge("mcp-resources", { uri: req.query.uri }, res);
+});
+
+app.get("/api/mcp/prompts", (req, res) => {
+  runApiBridge("mcp-prompts", { name: req.query.name }, res);
+});
+
+app.get("/api/mcp/servers", (req, res) => {
+  runApiBridge("mcp-servers", {}, res);
+});
+
+app.post("/api/mcp/call", (req, res) => {
+  runApiBridge("mcp-call", req.body, res);
+});
+
+app.post("/api/mcp/jsonrpc", (req, res) => {
+  runApiBridge("mcp-jsonrpc", { request: req.body }, res);
+});
+
+// -----------------------------------------------------------------------------
+// Git Worktrees, Branching, PR Lifecycle & CI/CD Endpoints (Phase 17)
+// -----------------------------------------------------------------------------
+app.get("/api/git/branches", (req, res) => {
+  runApiBridge("git-branches", {}, res);
+});
+
+app.post("/api/git/create-branch", (req, res) => {
+  runApiBridge("git-create-branch", req.body, res);
+});
+
+app.post("/api/git/switch-branch", (req, res) => {
+  runApiBridge("git-switch-branch", req.body, res);
+});
+
+app.get("/api/git/worktrees", (req, res) => {
+  runApiBridge("git-worktrees", {}, res);
+});
+
+app.post("/api/git/create-worktree", (req, res) => {
+  runApiBridge("git-create-worktree", req.body, res);
+});
+
+app.post("/api/git/remove-worktree", (req, res) => {
+  runApiBridge("git-remove-worktree", req.body, res);
+});
+
+app.post("/api/git/generate-pr", (req, res) => {
+  runApiBridge("git-generate-pr", req.body, res);
+});
+
+app.post("/api/git/run-ci", (req, res) => {
+  runApiBridge("git-run-ci", req.body, res);
+});
+
+app.post("/api/git/heal-ci", (req, res) => {
+  runApiBridge("git-heal-ci", req.body, res);
+});
+
+// -----------------------------------------------------------------------------
+// Code Review, AST Security Scanner & SARIF Endpoints (Phase 18)
+// -----------------------------------------------------------------------------
+app.post("/api/review/scan", (req, res) => {
+  runApiBridge("review-scan", req.body, res);
+});
+
+app.get("/api/review/sarif", (req, res) => {
+  runApiBridge("review-sarif", req.query, res);
+});
+
+app.get("/api/review/rules", (req, res) => {
+  runApiBridge("review-rules", {}, res);
+});
+
+// -----------------------------------------------------------------------------
 // Vite Middleware / Static Server
 // -----------------------------------------------------------------------------
 

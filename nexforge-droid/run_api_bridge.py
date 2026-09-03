@@ -998,6 +998,352 @@ def handle_swarm_deliberate(data: dict) -> dict:
     }
 
 
+def handle_mcp_status(data: dict) -> dict:
+    from app.mcp import MCPGateway
+    gateway = MCPGateway(workspace_root=BASE_DIR)
+    status = gateway.get_status()
+    return {"success": True, "status": status}
+
+
+def handle_mcp_tools(data: dict) -> dict:
+    from app.mcp import MCPGateway
+    gateway = MCPGateway(workspace_root=BASE_DIR)
+    resp = gateway.handle_request({"id": 1, "method": "tools/list", "params": {}})
+    tools = resp.result.get("tools", [])
+    return {"success": True, "tools": tools, "total": len(tools)}
+
+
+def handle_mcp_resources(data: dict) -> dict:
+    from app.mcp import MCPGateway
+    gateway = MCPGateway(workspace_root=BASE_DIR)
+    uri = data.get("uri")
+    if uri:
+        resp = gateway.handle_request({"id": 1, "method": "resources/read", "params": {"uri": uri}})
+        return {"success": resp.error is None, "content": resp.result, "error": resp.error.message if resp.error else None}
+    else:
+        resp = gateway.handle_request({"id": 1, "method": "resources/list", "params": {}})
+        resources = resp.result.get("resources", [])
+        return {"success": True, "resources": resources, "total": len(resources)}
+
+
+def handle_mcp_prompts(data: dict) -> dict:
+    from app.mcp import MCPGateway
+    gateway = MCPGateway(workspace_root=BASE_DIR)
+    name = data.get("name")
+    if name:
+        resp = gateway.handle_request({
+            "id": 1,
+            "method": "prompts/get",
+            "params": {"name": name, "arguments": data.get("arguments", {})},
+        })
+        return {"success": resp.error is None, "rendered": resp.result, "error": resp.error.message if resp.error else None}
+    else:
+        resp = gateway.handle_request({"id": 1, "method": "prompts/list", "params": {}})
+        prompts = resp.result.get("prompts", [])
+        return {"success": True, "prompts": prompts, "total": len(prompts)}
+
+
+def handle_mcp_servers(data: dict) -> dict:
+    from app.mcp import MCPGateway
+    gateway = MCPGateway(workspace_root=BASE_DIR)
+    servers = gateway.client.list_servers()
+    ext_tools = gateway.client.list_external_tools()
+    return {
+        "success": True,
+        "servers": servers,
+        "external_tools": ext_tools,
+        "total_servers": len(servers),
+        "total_external_tools": len(ext_tools),
+    }
+
+
+def handle_mcp_call(data: dict) -> dict:
+    from app.mcp import MCPGateway
+    gateway = MCPGateway(workspace_root=BASE_DIR)
+    tool_name = data.get("name")
+    arguments = data.get("arguments", {})
+    resp = gateway.handle_request({
+        "id": data.get("id", 1),
+        "method": "tools/call",
+        "params": {"name": tool_name, "arguments": arguments},
+    })
+    return {
+        "success": resp.error is None and not (resp.result and resp.result.get("isError", False)),
+        "result": resp.result,
+        "error": resp.error.message if resp.error else None,
+    }
+
+
+def handle_mcp_jsonrpc(data: dict) -> dict:
+    from app.mcp import MCPGateway
+    gateway = MCPGateway(workspace_root=BASE_DIR)
+    request_obj = data.get("request", {})
+    resp = gateway.handle_request(request_obj)
+    return {"success": True, "response": resp.to_dict()}
+
+
+# --- Phase 17: Git Worktrees, Branching, PR Lifecycle & CI/CD Handlers ---
+
+def handle_git_branches(data: dict) -> dict:
+    from app.git.branch import GitBranchManager
+    mgr = GitBranchManager(repo_path=BASE_DIR)
+    branches = [b.to_dict() for b in mgr.list_branches()]
+    current = next((b for b in branches if b.get("is_current")), None)
+    return {
+        "success": True,
+        "branches": branches,
+        "current_branch": current.get("name") if current else "main",
+        "count": len(branches),
+    }
+
+
+def handle_git_create_branch(data: dict) -> dict:
+    from app.git.branch import GitBranchManager
+    mgr = GitBranchManager(repo_path=BASE_DIR)
+    name = data.get("name", "")
+    start_point = data.get("start_point", "main")
+    switch = data.get("switch", True)
+    try:
+        b = mgr.create_branch(name, start_point=start_point, switch=switch)
+        return {"success": True, "branch": b.to_dict()}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def handle_git_switch_branch(data: dict) -> dict:
+    from app.git.branch import GitBranchManager
+    mgr = GitBranchManager(repo_path=BASE_DIR)
+    name = data.get("name", "")
+    ok = mgr.switch_branch(name)
+    return {"success": ok, "current_branch": name if ok else None}
+
+
+def handle_git_worktrees(data: dict) -> dict:
+    from app.git.worktree import GitWorktreeManager
+    mgr = GitWorktreeManager(repo_path=BASE_DIR)
+    wts = [w.to_dict() for w in mgr.list_worktrees()]
+    return {
+        "success": True,
+        "worktrees": wts,
+        "count": len(wts),
+    }
+
+
+def handle_git_create_worktree(data: dict) -> dict:
+    from app.git.worktree import GitWorktreeManager
+    mgr = GitWorktreeManager(repo_path=BASE_DIR)
+    branch = data.get("branch", "feat/isolated-agent")
+    task_id = data.get("task_id")
+    try:
+        wt = mgr.create_worktree(branch=branch, task_id=task_id)
+        return {"success": True, "worktree": wt.to_dict()}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def handle_git_remove_worktree(data: dict) -> dict:
+    from app.git.worktree import GitWorktreeManager
+    mgr = GitWorktreeManager(repo_path=BASE_DIR)
+    wt_id = data.get("worktree_id", "")
+    ok = mgr.remove_worktree(wt_id)
+    return {"success": ok, "removed": wt_id}
+
+
+def handle_git_generate_pr(data: dict) -> dict:
+    from app.git.pr_generator import PullRequestSynthesizer
+    synthesizer = PullRequestSynthesizer(repo_path=BASE_DIR)
+    title = data.get("title")
+    branch_source = data.get("branch_source", "feat/mcp-gateway")
+    branch_target = data.get("branch_target", "main")
+    task_objective = data.get("task_objective")
+    spec = synthesizer.synthesize_pr(
+        title=title,
+        branch_source=branch_source,
+        branch_target=branch_target,
+        task_objective=task_objective,
+    )
+    return {
+        "success": True,
+        "pr": spec.to_dict(),
+        "markdown": spec.markdown_body,
+    }
+
+
+def handle_git_run_ci(data: dict) -> dict:
+    from app.git.ci_pipeline import CISelfHealingEngine
+    engine = CISelfHealingEngine(repo_path=BASE_DIR)
+    branch = data.get("branch", "main")
+    simulate_failure = data.get("simulate_failure_stage")
+    pipeline = engine.run_pipeline(branch=branch, simulate_failure_stage=simulate_failure)
+    return {
+        "success": True,
+        "pipeline": pipeline.to_dict(),
+    }
+
+
+def handle_git_heal_ci(data: dict) -> dict:
+    from app.git.ci_pipeline import CISelfHealingEngine
+    engine = CISelfHealingEngine(repo_path=BASE_DIR)
+    branch = data.get("branch", "main")
+    failed_stage = data.get("failed_stage", "unit_tests")
+    failed_run = engine.run_pipeline(branch=branch, simulate_failure_stage=failed_stage)
+    healed_run = engine.heal_pipeline(failed_run)
+    return {
+        "success": True,
+        "healed_pipeline": healed_run.to_dict(),
+        "healed_patch": healed_run.healed_patch,
+        "healing_attempts": healed_run.healing_attempts,
+    }
+
+
+def handle_review_scan(data: dict) -> dict:
+    from app.review.analyzer import CodeQualityAnalyzer
+    from app.review.security_scanner import ASTSecurityScanner
+
+    directory = data.get("directory", ".")
+    code_snippet = data.get("code_snippet")
+
+    scanner = ASTSecurityScanner(workspace_root=BASE_DIR)
+    analyzer = CodeQualityAnalyzer(workspace_root=BASE_DIR)
+
+    if code_snippet:
+        vulns = scanner.scan_code(code_snippet, file_path="snippet.py")
+        findings = analyzer.analyze_code(code_snippet, file_path="snippet.py")
+        return {
+            "success": True,
+            "vulnerabilities": [v.to_dict() for v in vulns],
+            "findings": [f.to_dict() for f in findings],
+            "total_vulnerabilities": len(vulns),
+            "total_findings": len(findings),
+        }
+
+    vulns = scanner.scan_directory(directory=directory)
+    report = analyzer.run_review(directory=directory)
+
+    return {
+        "success": True,
+        "report": report.to_dict(),
+        "vulnerabilities": [v.to_dict() for v in vulns],
+        "total_vulnerabilities": len(vulns),
+        "critical_count": sum(1 for v in vulns if v.severity == "CRITICAL"),
+        "high_count": sum(1 for v in vulns if v.severity == "HIGH"),
+        "medium_count": sum(1 for v in vulns if v.severity == "MEDIUM"),
+        "low_count": sum(1 for v in vulns if v.severity in ("LOW", "INFO")),
+    }
+
+
+def handle_review_sarif(data: dict) -> dict:
+    from app.review.analyzer import CodeQualityAnalyzer
+    from app.review.sarif import SARIFExporter
+    from app.review.security_scanner import ASTSecurityScanner
+
+    directory = data.get("directory", ".")
+    scanner = ASTSecurityScanner(workspace_root=BASE_DIR)
+    analyzer = CodeQualityAnalyzer(workspace_root=BASE_DIR)
+    exporter = SARIFExporter(workspace_root=BASE_DIR)
+
+    vulns = scanner.scan_directory(directory=directory)
+    report = analyzer.run_review(directory=directory)
+    sarif_doc = exporter.generate_sarif(vulnerabilities=vulns, findings=report.findings)
+
+    return {
+        "success": True,
+        "sarif": sarif_doc,
+        "results_count": len(sarif_doc["runs"][0]["results"]),
+        "rules_count": len(sarif_doc["runs"][0]["tool"]["driver"]["rules"]),
+    }
+
+
+def handle_review_rules(data: dict) -> dict:
+    rules = [
+        {
+            "id": "SEC-001-HARDCODED-SECRET",
+            "name": "Hardcoded Secret or Token",
+            "cwe": "CWE-798",
+            "category": "Security & Secrets",
+            "severity": "HIGH",
+            "description": "Detection of hardcoded API keys, JWT tokens, AWS access keys, and plaintext passwords.",
+        },
+        {
+            "id": "SEC-002-DYNAMIC-CODE-EXEC",
+            "name": "Arbitrary Dynamic Code Execution",
+            "cwe": "CWE-95",
+            "category": "Injection & RCE",
+            "severity": "CRITICAL",
+            "description": "Invocation of eval() or exec() with untrusted directives.",
+        },
+        {
+            "id": "SEC-003-INSECURE-DESERIALIZATION",
+            "name": "Insecure Deserialization",
+            "cwe": "CWE-502",
+            "category": "Object Injection",
+            "severity": "CRITICAL",
+            "description": "Use of pickle.loads on unauthenticated serialized payloads.",
+        },
+        {
+            "id": "SEC-004-SHELL-COMMAND-INJECTION",
+            "name": "OS Command Injection Risk",
+            "cwe": "CWE-78",
+            "category": "Command Injection",
+            "severity": "HIGH",
+            "description": "Execution of commands via os.system or os.popen without argument array escaping.",
+        },
+        {
+            "id": "SEC-005-SUBPROCESS-SHELL-TRUE",
+            "name": "Subprocess Shell Execution",
+            "cwe": "CWE-78",
+            "category": "Command Injection",
+            "severity": "HIGH",
+            "description": "subprocess methods invoked with shell=True exposing shell metacharacter expansion.",
+        },
+        {
+            "id": "SEC-006-WEAK-HASH-ALGORITHM",
+            "name": "Weak Cryptographic Hash Function",
+            "cwe": "CWE-327",
+            "category": "Cryptography",
+            "severity": "MEDIUM",
+            "description": "Use of broken cryptographic hashing algorithms MD5 or SHA-1.",
+        },
+        {
+            "id": "SEC-007-SQL-INJECTION-FORMAT",
+            "name": "SQL Injection via Formatted String",
+            "cwe": "CWE-89",
+            "category": "SQL Injection",
+            "severity": "HIGH",
+            "description": "Unescaped string interpolation or f-string concatenation in cursor.execute.",
+        },
+        {
+            "id": "SMELL-COMPLEXITY",
+            "name": "Cyclomatic Complexity Threshold",
+            "cwe": "N/A",
+            "category": "Maintainability",
+            "severity": "WARNING",
+            "description": "Functions exceeding McCabe cyclomatic complexity threshold of 10 branching paths.",
+        },
+        {
+            "id": "SMELL-BUG_RISK",
+            "name": "Silent Exception Suppression",
+            "cwe": "N/A",
+            "category": "Reliability",
+            "severity": "WARNING",
+            "description": "Bare 'except:' or 'except Exception: pass' blocks masking critical runtime faults.",
+        },
+        {
+            "id": "SMELL-FUNCTION-LENGTH",
+            "name": "Oversized Function Smell",
+            "cwe": "N/A",
+            "category": "Maintainability",
+            "severity": "WARNING",
+            "description": "Function bodies exceeding 60 physical lines of code without sub-modularization.",
+        },
+    ]
+    return {
+        "success": True,
+        "rules": rules,
+        "count": len(rules),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description="NexForge Droid API Bridge")
     parser.add_argument("--action", required=True, help="API Action to perform")
@@ -1052,6 +1398,25 @@ def main():
         "cli-exec": handle_cli_exec,
         "swarm-roles": handle_swarm_roles,
         "swarm-deliberate": handle_swarm_deliberate,
+        "mcp-status": handle_mcp_status,
+        "mcp-tools": handle_mcp_tools,
+        "mcp-resources": handle_mcp_resources,
+        "mcp-prompts": handle_mcp_prompts,
+        "mcp-servers": handle_mcp_servers,
+        "mcp-call": handle_mcp_call,
+        "mcp-jsonrpc": handle_mcp_jsonrpc,
+        "git-branches": handle_git_branches,
+        "git-create-branch": handle_git_create_branch,
+        "git-switch-branch": handle_git_switch_branch,
+        "git-worktrees": handle_git_worktrees,
+        "git-create-worktree": handle_git_create_worktree,
+        "git-remove-worktree": handle_git_remove_worktree,
+        "git-generate-pr": handle_git_generate_pr,
+        "git-run-ci": handle_git_run_ci,
+        "git-heal-ci": handle_git_heal_ci,
+        "review-scan": handle_review_scan,
+        "review-sarif": handle_review_sarif,
+        "review-rules": handle_review_rules,
     }
 
     if args.action not in action_map:

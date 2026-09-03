@@ -106,6 +106,17 @@ class FileMetric:
     is_test: bool = False
     is_entry_point: bool = False
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "path": self.path,
+            "relative_path": self.relative_path,
+            "language": self.language,
+            "size_bytes": self.size_bytes,
+            "lines_of_code": self.lines_of_code,
+            "is_test": self.is_test,
+            "is_entry_point": self.is_entry_point,
+        }
+
 
 @dataclass
 class RepositorySummary:
@@ -143,18 +154,8 @@ class RepositorySummary:
                 }
                 for m in self.manifests
             ],
-            "files_sample": [
-                {
-                    "path": f.path,
-                    "relative_path": f.relative_path,
-                    "language": f.language,
-                    "size_bytes": f.size_bytes,
-                    "lines_of_code": f.lines_of_code,
-                    "is_test": f.is_test,
-                    "is_entry_point": f.is_entry_point,
-                }
-                for f in self.files[:50]
-            ],
+            "files": [f.to_dict() for f in self.files],
+            "files_sample": [f.to_dict() for f in self.files[:50]],
         }
 
 

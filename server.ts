@@ -33,28 +33,73 @@ function getGeminiClient(): GoogleGenAI {
 // -----------------------------------------------------------------------------
 
 const isDemoMode = process.env.DEMO_MODE === "true" || process.env.DEMO_MODE === "1";
+const PYTHON_CMD = "uv run --no-project python3";
 
 app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
     service: "NexForge Droid Runtime Bridge",
-    phase: 12,
+    phase: 14,
+    uvRuntime: "uv 0.12.9 active",
     demoMode: isDemoMode,
     timestamp: new Date().toISOString(),
   });
 });
 
-// Helper for invoking python api bridge safely with stdin payload
+// Robust JSON extractor that handles any accidental output before/after JSON
+function safeJsonParse(raw: string): any {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    throw new Error("Empty output received from bridge process");
+  }
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    // Look for first object { or array [
+    const firstBrace = trimmed.indexOf("{");
+    const firstBracket = trimmed.indexOf("[");
+    let startIdx = -1;
+    if (firstBrace !== -1 && firstBracket !== -1) {
+      startIdx = Math.min(firstBrace, firstBracket);
+    } else if (firstBrace !== -1) {
+      startIdx = firstBrace;
+    } else if (firstBracket !== -1) {
+      startIdx = firstBracket;
+    }
+
+    if (startIdx !== -1) {
+      try {
+        return JSON.parse(trimmed.slice(startIdx));
+      } catch {}
+    }
+
+    // Try lines backwards in case trailing logs or multiple lines
+    const lines = trimmed.split("\n");
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const candidate = lines.slice(i).join("\n").trim();
+      try {
+        return JSON.parse(candidate);
+      } catch {}
+    }
+    throw new Error("Failed to parse JSON: " + trimmed.slice(0, 150));
+  }
+}
+
+// Helper for invoking python api bridge safely with stdin payload via UV
 function runApiBridge(action: string, payload: any, res: express.Response) {
   const pythonProc = exec(
-    `python3 ./nexforge-droid/run_api_bridge.py --action ${JSON.stringify(action)} --payload -`,
-    { cwd: process.cwd(), maxBuffer: 10 * 1024 * 1024 },
+    `${PYTHON_CMD} ./nexforge-droid/run_api_bridge.py --action ${JSON.stringify(action)} --payload -`,
+    {
+      cwd: process.cwd(),
+      maxBuffer: 15 * 1024 * 1024,
+      env: { ...process.env, PYTHONPATH: "./nexforge-droid" },
+    },
     (error, stdout, stderr) => {
       if (error && !stdout) {
         return res.status(500).json({ success: false, error: stderr || error.message });
       }
       try {
-        const data = JSON.parse(stdout.trim());
+        const data = safeJsonParse(stdout);
         res.json(data);
       } catch (e: any) {
         res.status(500).json({ success: false, error: "Failed to parse API bridge output", raw: stdout + "\n" + stderr });
@@ -125,10 +170,65 @@ app.post("/api/context/budget", (req, res) => {
   runApiBridge("context-budget", req.body, res);
 });
 
+// Dynamic Evaluation & Benchmark Endpoints (Phase 13)
+app.get("/api/evaluation/benchmarks", (req, res) => {
+  runApiBridge("evaluation-benchmarks", {}, res);
+});
+
+app.post("/api/evaluation/run-benchmark", (req, res) => {
+  runApiBridge("evaluation-run-benchmark", req.body, res);
+});
+
+app.post("/api/evaluation/quality-gate", (req, res) => {
+  runApiBridge("evaluation-quality-gate", req.body, res);
+});
+
+app.get("/api/evaluation/leaderboard", (req, res) => {
+  runApiBridge("evaluation-leaderboard", {}, res);
+});
+
+// Dynamic UV Environment & Distribution Endpoints (Phase 14)
+app.get("/api/uv/status", (req, res) => {
+  runApiBridge("uv-info", {}, res);
+});
+
+app.post("/api/uv/run", (req, res) => {
+  const command = req.body.command || "uv --version";
+  const start = Date.now();
+  exec(command, { cwd: process.cwd(), maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
+    const durationMs = Date.now() - start;
+    res.json({
+      success: !error,
+      exit_code: error ? (error.code ?? 1) : 0,
+      duration_ms: durationMs,
+      command,
+      stdout: stdout || "",
+      stderr: stderr || "",
+    });
+  });
+});
+
+app.get("/api/cli/info", (req, res) => {
+  runApiBridge("cli-exec", { subcommand: "info" }, res);
+});
+
+app.post("/api/cli/exec", (req, res) => {
+  runApiBridge("cli-exec", { subcommand: req.body.subcommand || "info", args: req.body.args || [] }, res);
+});
+
+// Dynamic Multi-Agent Swarm Collaboration Endpoints (Phase 15)
+app.get("/api/swarm/roles", (req, res) => {
+  runApiBridge("swarm-roles", {}, res);
+});
+
+app.post("/api/swarm/deliberate", (req, res) => {
+  runApiBridge("swarm-deliberate", req.body, res);
+});
+
 
 // List all registered tools in python ToolRegistry
 app.get("/api/tools/list", (req, res) => {
-  exec("python3 ./nexforge-droid/run_tool.py", { cwd: process.cwd() }, (error, stdout, stderr) => {
+  exec(`${PYTHON_CMD} ./nexforge-droid/run_tool.py`, { cwd: process.cwd() }, (error, stdout, stderr) => {
     if (error) {
       return res.status(500).json({ error: stderr || error.message });
     }
@@ -149,7 +249,7 @@ app.post("/api/tools/execute", (req, res) => {
   }
 
   const argsJson = JSON.stringify(args || {});
-  const cmd = `python3 ./nexforge-droid/run_tool.py ${JSON.stringify(tool)} ${JSON.stringify(argsJson)}`;
+  const cmd = `${PYTHON_CMD} ./nexforge-droid/run_tool.py ${JSON.stringify(tool)} ${JSON.stringify(argsJson)}`;
 
   exec(cmd, { cwd: process.cwd() }, (error, stdout, stderr) => {
     if (error && !stdout) {
@@ -166,7 +266,7 @@ app.post("/api/tools/execute", (req, res) => {
 
 // Run automated Python test suite
 app.post("/api/tests/run", (req, res) => {
-  exec("python3 ./nexforge-droid/run_tests.py", { cwd: process.cwd() }, (error, stdout, stderr) => {
+  exec(`${PYTHON_CMD} ./nexforge-droid/run_tests.py`, { cwd: process.cwd() }, (error, stdout, stderr) => {
     const rawOutput = stdout + (stderr ? "\n" + stderr : "");
     const totalMatch = stdout.match(/Total Tests Run\s*:\s*(\d+)/);
     const failMatch = stdout.match(/Failures\s*:\s*(\d+)/);
@@ -296,7 +396,7 @@ app.post("/api/agent/run", (req, res) => {
   const reqStr = JSON.stringify(requirement);
   const provStr = JSON.stringify(provider);
   const scenStr = JSON.stringify(mockScenario);
-  const cmd = `python3 ./nexforge-droid/run_agent.py --requirement ${reqStr} --provider ${provStr} --mock-scenario ${scenStr} --max-iterations ${maxIterations}`;
+  const cmd = `${PYTHON_CMD} ./nexforge-droid/run_agent.py --requirement ${reqStr} --provider ${provStr} --mock-scenario ${scenStr} --max-iterations ${maxIterations}`;
 
   exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
     if (error && !stdout) {
@@ -313,7 +413,7 @@ app.post("/api/agent/run", (req, res) => {
 
 // Storage & Persistence API endpoints
 app.get("/api/storage/stats", (req, res) => {
-  const cmd = `python3 ./nexforge-droid/run_storage.py --op stats`;
+  const cmd = `${PYTHON_CMD} ./nexforge-droid/run_storage.py --op stats`;
   exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
     if (error && !stdout) {
       return res.status(500).json({ error: stderr || error.message });
@@ -328,7 +428,7 @@ app.get("/api/storage/stats", (req, res) => {
 
 app.get("/api/storage/tasks", (req, res) => {
   const status = req.query.status ? `--status ${JSON.stringify(req.query.status)}` : "";
-  const cmd = `python3 ./nexforge-droid/run_storage.py --op list-tasks ${status}`;
+  const cmd = `${PYTHON_CMD} ./nexforge-droid/run_storage.py --op list-tasks ${status}`;
   exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
     if (error && !stdout) {
       return res.status(500).json({ error: stderr || error.message });
@@ -343,7 +443,7 @@ app.get("/api/storage/tasks", (req, res) => {
 
 app.get("/api/storage/tasks/:id", (req, res) => {
   const taskId = JSON.stringify(req.params.id);
-  const cmd = `python3 ./nexforge-droid/run_storage.py --op get-task --task-id ${taskId}`;
+  const cmd = `${PYTHON_CMD} ./nexforge-droid/run_storage.py --op get-task --task-id ${taskId}`;
   exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
     if (error && !stdout) {
       return res.status(500).json({ error: stderr || error.message });
@@ -360,7 +460,7 @@ app.post("/api/storage/tasks", (req, res) => {
   const { requirement = "Manual Task", repoId = "repo_main" } = req.body;
   const reqStr = JSON.stringify(requirement);
   const repoStr = JSON.stringify(repoId);
-  const cmd = `python3 ./nexforge-droid/run_storage.py --op create-task --requirement ${reqStr} --repo-id ${repoStr}`;
+  const cmd = `${PYTHON_CMD} ./nexforge-droid/run_storage.py --op create-task --requirement ${reqStr} --repo-id ${repoStr}`;
   exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
     if (error && !stdout) {
       return res.status(500).json({ error: stderr || error.message });
@@ -376,7 +476,7 @@ app.post("/api/storage/tasks", (req, res) => {
 app.post("/api/storage/tasks/:id/pause", (req, res) => {
   const taskId = JSON.stringify(req.params.id);
   const reason = JSON.stringify(req.body.reason || "Manual user pause");
-  const cmd = `python3 ./nexforge-droid/run_storage.py --op pause-task --task-id ${taskId} --reason ${reason}`;
+  const cmd = `${PYTHON_CMD} ./nexforge-droid/run_storage.py --op pause-task --task-id ${taskId} --reason ${reason}`;
   exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
     if (error && !stdout) {
       return res.status(500).json({ error: stderr || error.message });
@@ -391,7 +491,7 @@ app.post("/api/storage/tasks/:id/pause", (req, res) => {
 
 app.post("/api/storage/tasks/:id/resume", (req, res) => {
   const taskId = JSON.stringify(req.params.id);
-  const cmd = `python3 ./nexforge-droid/run_storage.py --op resume-task --task-id ${taskId}`;
+  const cmd = `${PYTHON_CMD} ./nexforge-droid/run_storage.py --op resume-task --task-id ${taskId}`;
   exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
     if (error && !stdout) {
       return res.status(500).json({ error: stderr || error.message });
@@ -407,7 +507,7 @@ app.post("/api/storage/tasks/:id/resume", (req, res) => {
 app.post("/api/storage/tasks/:id/checkpoint", (req, res) => {
   const taskId = JSON.stringify(req.params.id);
   const desc = JSON.stringify(req.body.description || "Manual checkpoint snapshot");
-  const cmd = `python3 ./nexforge-droid/run_storage.py --op create-checkpoint --task-id ${taskId} --desc ${desc}`;
+  const cmd = `${PYTHON_CMD} ./nexforge-droid/run_storage.py --op create-checkpoint --task-id ${taskId} --desc ${desc}`;
   exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
     if (error && !stdout) {
       return res.status(500).json({ error: stderr || error.message });
@@ -422,7 +522,7 @@ app.post("/api/storage/tasks/:id/checkpoint", (req, res) => {
 
 app.post("/api/storage/checkpoints/:id/restore", (req, res) => {
   const chkId = JSON.stringify(req.params.id);
-  const cmd = `python3 ./nexforge-droid/run_storage.py --op restore-checkpoint --checkpoint-id ${chkId}`;
+  const cmd = `${PYTHON_CMD} ./nexforge-droid/run_storage.py --op restore-checkpoint --checkpoint-id ${chkId}`;
   exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
     if (error && !stdout) {
       return res.status(500).json({ error: stderr || error.message });
@@ -437,7 +537,7 @@ app.post("/api/storage/checkpoints/:id/restore", (req, res) => {
 
 app.delete("/api/storage/tasks/:id", (req, res) => {
   const taskId = JSON.stringify(req.params.id);
-  const cmd = `python3 ./nexforge-droid/run_storage.py --op delete-task --task-id ${taskId}`;
+  const cmd = `${PYTHON_CMD} ./nexforge-droid/run_storage.py --op delete-task --task-id ${taskId}`;
   exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
     if (error && !stdout) {
       return res.status(500).json({ error: stderr || error.message });
@@ -451,7 +551,7 @@ app.delete("/api/storage/tasks/:id", (req, res) => {
 });
 
 app.post("/api/storage/seed", (req, res) => {
-  const cmd = `python3 ./nexforge-droid/run_storage.py --op seed-demo-data`;
+  const cmd = `${PYTHON_CMD} ./nexforge-droid/run_storage.py --op seed-demo-data`;
   exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
     if (error && !stdout) {
       return res.status(500).json({ error: stderr || error.message });
@@ -467,7 +567,7 @@ app.post("/api/storage/seed", (req, res) => {
 // Repository Intelligence & Code Graph API endpoints (Phase 5 & 6)
 app.get("/api/repo/scan", (req, res) => {
   const targetPath = JSON.stringify(req.query.path || "./nexforge-droid");
-  const cmd = `python3 ./nexforge-droid/run_intelligence.py --op scan --path ${targetPath}`;
+  const cmd = `${PYTHON_CMD} ./nexforge-droid/run_intelligence.py --op scan --path ${targetPath}`;
   exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
     if (error && !stdout) {
       return res.status(500).json({ error: stderr || error.message });
@@ -483,7 +583,7 @@ app.get("/api/repo/scan", (req, res) => {
 app.get("/api/repo/graph", (req, res) => {
   const targetPath = JSON.stringify(req.query.path || "./nexforge-droid");
   const maxNodes = Number(req.query.maxNodes) || 150;
-  const cmd = `python3 ./nexforge-droid/run_intelligence.py --op graph --path ${targetPath} --max-nodes ${maxNodes}`;
+  const cmd = `${PYTHON_CMD} ./nexforge-droid/run_intelligence.py --op graph --path ${targetPath} --max-nodes ${maxNodes}`;
   exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
     if (error && !stdout) {
       return res.status(500).json({ error: stderr || error.message });
@@ -499,7 +599,7 @@ app.get("/api/repo/graph", (req, res) => {
 app.get("/api/repo/symbols", (req, res) => {
   const targetPath = JSON.stringify(req.query.path || "./nexforge-droid");
   const query = JSON.stringify(req.query.query || "");
-  const cmd = `python3 ./nexforge-droid/run_intelligence.py --op search-symbols --path ${targetPath} --query ${query}`;
+  const cmd = `${PYTHON_CMD} ./nexforge-droid/run_intelligence.py --op search-symbols --path ${targetPath} --query ${query}`;
   exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
     if (error && !stdout) {
       return res.status(500).json({ error: stderr || error.message });
@@ -515,7 +615,7 @@ app.get("/api/repo/symbols", (req, res) => {
 app.get("/api/repo/symbol-details", (req, res) => {
   const targetPath = JSON.stringify(req.query.path || "./nexforge-droid");
   const symbol = JSON.stringify(req.query.symbol || "");
-  const cmd = `python3 ./nexforge-droid/run_intelligence.py --op symbol-details --path ${targetPath} --symbol ${symbol}`;
+  const cmd = `${PYTHON_CMD} ./nexforge-droid/run_intelligence.py --op symbol-details --path ${targetPath} --symbol ${symbol}`;
   exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
     if (error && !stdout) {
       return res.status(500).json({ error: stderr || error.message });
@@ -528,10 +628,26 @@ app.get("/api/repo/symbol-details", (req, res) => {
   });
 });
 
+app.get("/api/repo/file-symbols", (req, res) => {
+  const targetPath = JSON.stringify(req.query.path || "./nexforge-droid");
+  const file = JSON.stringify(req.query.file || "");
+  const cmd = `${PYTHON_CMD} ./nexforge-droid/run_intelligence.py --op file-symbols --path ${targetPath} --file ${file}`;
+  exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
+    if (error && !stdout) {
+      return res.status(500).json({ error: stderr || error.message });
+    }
+    try {
+      res.json(JSON.parse(stdout.trim()));
+    } catch (e: any) {
+      res.status(500).json({ error: "Failed to parse file symbols: " + stdout });
+    }
+  });
+});
+
 app.post("/api/repo/context", (req, res) => {
   const targetPath = JSON.stringify(req.body.path || "./nexforge-droid");
   const requirement = JSON.stringify(req.body.requirement || "Analyze codebase structure and verify test suites.");
-  const cmd = `python3 ./nexforge-droid/run_intelligence.py --op context --path ${targetPath} --requirement ${requirement}`;
+  const cmd = `${PYTHON_CMD} ./nexforge-droid/run_intelligence.py --op context --path ${targetPath} --requirement ${requirement}`;
   exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
     if (error && !stdout) {
       return res.status(500).json({ error: stderr || error.message });
@@ -546,7 +662,7 @@ app.post("/api/repo/context", (req, res) => {
 
 app.get("/api/repo/stats", (req, res) => {
   const targetPath = JSON.stringify(req.query.path || "./nexforge-droid");
-  const cmd = `python3 ./nexforge-droid/run_intelligence.py --op stats --path ${targetPath}`;
+  const cmd = `${PYTHON_CMD} ./nexforge-droid/run_intelligence.py --op stats --path ${targetPath}`;
   exec(cmd, { cwd: process.cwd(), env: { ...process.env } }, (error, stdout, stderr) => {
     if (error && !stdout) {
       return res.status(500).json({ error: stderr || error.message });

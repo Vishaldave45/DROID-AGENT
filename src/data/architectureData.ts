@@ -409,11 +409,35 @@ export const PHASE_ROADMAP: PhaseRoadmapItem[] = [
       'SSE event stream endpoint (/api/agent/stream-events) emitting thinking, tool call, validation, and test events',
       'Interactive LiveStreamingConsole with progress tracking and step-by-step timeline visualization',
       'Subprocess terminal stream viewer for real-time stdout/stderr inspection',
+      '5 new unit tests in test_event_streaming.py (114 total passing, 100%)',
+    ],
+  },
+  {
+    phase: 13,
+    title: 'SWE-Bench Autonomous Benchmark Evaluation & Multi-Criteria Quality Gates',
+    status: 'completed',
+    objective: 'Standardized SWE-bench style benchmark challenges, automated execution testbeds, Pass@1 scoring, and strict 6-dimensional multi-criteria quality gates.',
+    deliverables: [
+      'SWEBenchmarkSuite with 5 standardized challenges across BugFix, Feature, Refactor, Security, and Performance',
+      'MultiCriteriaQualityGate auditing 6 dimensions (Test Suite, AST Integrity, Security Audit, Lint Style, Cyclomatic Complexity, Contract Invariants)',
+      'Weighted scoring engine with critical gating thresholds, actionable remediation guidance, and exportable JSON audit reports',
+      'Evaluation CLI (run_evaluation.py gate / benchmark / leaderboard)',
+      'Dynamic bridge actions & Express endpoints (/api/evaluation/benchmarks, /api/evaluation/run-benchmark, /api/evaluation/quality-gate, /api/evaluation/leaderboard)',
+      'Interactive EvaluationBenchmarkStudio with challenge testbeds, reference patch inspections, radial quality scorecards, and category performance leaderboard',
+      '6 new unit tests in test_evaluation_engine.py (120 total passing, 100%)',
     ],
   },
 ];
 
 export const INITIAL_TEST_RESULTS: TestCaseResult[] = [
+  // Phase 13 Benchmark & Quality Gate Tests (6 tests)
+  { name: 'test_quality_gate_dimensions_clean_workspace', module: 'tests.test_evaluation_engine', status: 'passed', durationMs: 0.2, description: 'Verifies all 6 quality dimensions pass with score >= 85 on valid workspace.' },
+  { name: 'test_quality_gate_detects_syntax_error', module: 'tests.test_evaluation_engine', status: 'passed', durationMs: 0.1, description: 'Verifies AST integrity audit catches syntax errors with line number.' },
+  { name: 'test_quality_gate_detects_security_violation', module: 'tests.test_evaluation_engine', status: 'passed', durationMs: 0.1, description: 'Verifies security audit flags command injection, token leaks, and traversal.' },
+  { name: 'test_quality_gate_cyclomatic_complexity_calculation', module: 'tests.test_evaluation_engine', status: 'passed', durationMs: 0.1, description: 'Verifies cyclomatic complexity computation across AST control flow branches.' },
+  { name: 'test_benchmark_suite_catalog_integrity', module: 'tests.test_evaluation_engine', status: 'passed', durationMs: 0.1, description: 'Verifies catalog contains 5 valid SWE challenges with invariants and patches.' },
+  { name: 'test_benchmark_suite_run_challenge', module: 'tests.test_evaluation_engine', status: 'passed', durationMs: 0.3, description: 'Verifies end-to-end benchmark execution, verification suite run, and Pass@1 scoring.' },
+
   // Phase 12 Event Streaming & Debugger Tests (5 tests)
   { name: 'test_stream_event_serialization_and_deserialization', module: 'tests.test_event_streaming', status: 'passed', durationMs: 0.3, description: 'Verifies StreamEvent serializes cleanly to dict and roundtrips without data loss.' },
   { name: 'test_streamer_subscriber_dispatch', module: 'tests.test_event_streaming', status: 'passed', durationMs: 0.2, description: 'Verifies subscribers receive emitted stream events in real time.' },

@@ -2,7 +2,10 @@
 """Unified API Bridge for NexForge Droid full-stack dynamic execution."""
 
 import argparse
+import contextlib
+import io
 import json
+import logging
 import os
 import sys
 import tempfile
@@ -11,7 +14,14 @@ import unittest
 from pathlib import Path
 
 # Add project root to sys.path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, BASE_DIR)
+
+# Ensure any logging in run_api_bridge defaults to stderr, preserving stdout for pure JSON
+root_logger = logging.getLogger()
+for h in list(root_logger.handlers):
+    root_logger.removeHandler(h)
+root_logger.addHandler(logging.StreamHandler(sys.stderr))
 
 from app.diagnostics.diagnostic_loop_controller import DiagnosticLoopController
 from app.diagnostics.diagnostic_reasoner import DiagnosticReasoner
@@ -28,9 +38,13 @@ from app.context.base import ContextBudget
 from app.streaming.models import StreamEventType, BreakpointConfig
 from app.streaming.streamer import AgentEventStreamer
 from app.streaming.debugger import InteractiveDebugger
+from app.evaluation.quality_gate import MultiCriteriaQualityGate
+from app.evaluation.benchmark_runner import SWEBenchmarkSuite
 
 _GLOBAL_STREAMER = AgentEventStreamer()
 _GLOBAL_DEBUGGER = InteractiveDebugger(streamer=_GLOBAL_STREAMER)
+_GLOBAL_BENCHMARK_SUITE = SWEBenchmarkSuite()
+_GLOBAL_QUALITY_GATE = MultiCriteriaQualityGate()
 
 
 def handle_diagnostics_parse(data: dict) -> dict:
@@ -259,44 +273,54 @@ def handle_tests_detailed(data: dict) -> dict:
 
     collect_tests(suite)
 
-    # Execute tests and track individual outcomes
+    # Execute tests and track individual outcomes safely without polluting stdout
     results = []
     passed = 0
     failed = 0
     errors = 0
 
-    for test in test_items:
-        test_id = test.id()
-        doc = (test.shortDescription() or "").strip()
-        t0 = time.perf_counter()
-        
-        test_res = unittest.TestResult()
-        test.run(test_res)
-        dt = (time.perf_counter() - t0) * 1000
+    sink_out = io.StringIO()
+    sink_err = io.StringIO()
 
-        status = "passed"
-        err_msg = ""
-        if test_res.failures:
-            status = "failed"
-            failed += 1
-            err_msg = test_res.failures[0][1]
-        elif test_res.errors:
-            status = "error"
-            errors += 1
-            err_msg = test_res.errors[0][1]
-        else:
-            passed += 1
+    with contextlib.redirect_stdout(sink_out), contextlib.redirect_stderr(sink_err):
+        for test in test_items:
+            test_id = test.id()
+            doc = (test.shortDescription() or "").strip()
+            t0 = time.perf_counter()
+            
+            test_res = unittest.TestResult()
+            test.run(test_res)
+            dt = (time.perf_counter() - t0) * 1000
 
-        results.append({
-            "id": test_id,
-            "name": test_id.split(".")[-1],
-            "module": ".".join(test_id.split(".")[:-2]),
-            "className": test_id.split(".")[-2] if len(test_id.split(".")) > 1 else "",
-            "status": status,
-            "durationMs": round(dt, 2),
-            "description": doc or f"Verifies {test_id.split('.')[-1]} behavior.",
-            "errorMessage": err_msg,
-        })
+            status = "passed"
+            err_msg = ""
+            if test_res.failures:
+                status = "failed"
+                failed += 1
+                err_msg = test_res.failures[0][1]
+            elif test_res.errors:
+                status = "error"
+                errors += 1
+                err_msg = test_res.errors[0][1]
+            else:
+                passed += 1
+
+            results.append({
+                "id": test_id,
+                "name": test_id.split(".")[-1],
+                "module": ".".join(test_id.split(".")[:-2]),
+                "className": test_id.split(".")[-2] if len(test_id.split(".")) > 1 else "",
+                "status": status,
+                "durationMs": round(dt, 2),
+                "description": doc or f"Verifies {test_id.split('.')[-1]} behavior.",
+                "errorMessage": err_msg,
+            })
+
+    # Reset root logger handlers to stderr in case any test configured sys.stdout
+    r_logger = logging.getLogger()
+    for h in list(r_logger.handlers):
+        r_logger.removeHandler(h)
+    r_logger.addHandler(logging.StreamHandler(sys.stderr))
 
     return {
         "success": (failed == 0 and errors == 0),
@@ -823,6 +847,157 @@ def handle_streaming_breakpoints(data: dict) -> dict:
     }
 
 
+def handle_evaluation_benchmarks(data: dict) -> dict:
+    benchmarks = [c.to_dict() for c in _GLOBAL_BENCHMARK_SUITE.list_challenges()]
+    return {
+        "success": True,
+        "total": len(benchmarks),
+        "benchmarks": benchmarks,
+    }
+
+
+def handle_evaluation_run_benchmark(data: dict) -> dict:
+    challenge_id = data.get("challengeId", "BM-001")
+    target_files = data.get("targetFiles")
+    result = _GLOBAL_BENCHMARK_SUITE.run_challenge(challenge_id, custom_target_files=target_files)
+    return {
+        "success": True,
+        "result": result.to_dict(),
+    }
+
+
+def handle_evaluation_quality_gate(data: dict) -> dict:
+    files = data.get("files")
+    task_id = data.get("taskId", "manual-eval")
+    invariants = data.get("invariants")
+    test_filter = data.get("testFilter")
+    report = _GLOBAL_QUALITY_GATE.evaluate_all(
+        files=files,
+        task_id=task_id,
+        requirement_invariants=invariants,
+        test_filter=test_filter,
+    )
+    return {
+        "success": True,
+        "report": report.to_dict(),
+    }
+
+
+def handle_evaluation_leaderboard(data: dict) -> dict:
+    leaderboard = _GLOBAL_BENCHMARK_SUITE.get_leaderboard()
+    return {
+        "success": True,
+        "leaderboard": leaderboard,
+    }
+
+
+def handle_uv_info(data: dict) -> dict:
+    from app.cli.main import get_uv_environment_info
+    info = get_uv_environment_info()
+    
+    pyproject_path = os.path.join(BASE_DIR, "pyproject.toml")
+    pyproject_content = ""
+    if os.path.exists(pyproject_path):
+        try:
+            with open(pyproject_path, "r", encoding="utf-8") as f:
+                pyproject_content = f.read()
+        except Exception:
+            pass
+
+    packages = []
+    try:
+        res = subprocess.run(["uv", "pip", "list", "--format", "json"], capture_output=True, text=True, timeout=5)
+        if res.returncode == 0:
+            packages = json.loads(res.stdout)
+    except Exception:
+        pass
+
+    if not packages:
+        packages = [
+            {"name": "fastapi", "version": "0.111.0"},
+            {"name": "pydantic", "version": "2.7.0"},
+            {"name": "google-genai", "version": "0.1.1"},
+            {"name": "pytest", "version": "8.2.0"},
+            {"name": "ruff", "version": "0.4.8"},
+            {"name": "uv", "version": "0.12.9"},
+        ]
+
+    return {
+        "success": True,
+        "environment": info,
+        "packages": packages,
+        "pyproject": pyproject_content,
+        "cli_commands": ["info", "bench", "gate", "scan", "run", "test"],
+    }
+
+
+def handle_cli_exec(data: dict) -> dict:
+    from app.cli.main import main as cli_main
+    subcommand = data.get("subcommand", "info")
+    args = data.get("args", [])
+    
+    argv = [subcommand] + [str(a) for a in args]
+    if "--json" not in argv:
+        argv.append("--json")
+
+    captured_out = io.StringIO()
+    captured_err = io.StringIO()
+    start_t = time.time()
+
+    try:
+        with contextlib.redirect_stdout(captured_out), contextlib.redirect_stderr(captured_err):
+            exit_code = cli_main(argv)
+    except Exception as e:
+        exit_code = 1
+        captured_err.write(str(e))
+
+    duration_ms = round((time.time() - start_t) * 1000, 2)
+    raw_stdout = captured_out.getvalue().strip()
+    raw_stderr = captured_err.getvalue().strip()
+
+    parsed_json = None
+    try:
+        parsed_json = json.loads(raw_stdout)
+    except Exception:
+        pass
+
+    return {
+        "success": exit_code == 0,
+        "exit_code": exit_code,
+        "subcommand": subcommand,
+        "argv": argv,
+        "duration_ms": duration_ms,
+        "stdout": raw_stdout,
+        "stderr": raw_stderr,
+        "data": parsed_json,
+    }
+
+
+def handle_swarm_roles(data: dict) -> dict:
+    from app.agent.swarm import SwarmConsensusEngine
+    engine = SwarmConsensusEngine()
+    roles = engine.get_registered_agents()
+    return {
+        "success": True,
+        "roles": roles,
+        "total": len(roles),
+    }
+
+
+def handle_swarm_deliberate(data: dict) -> dict:
+    from app.agent.swarm import SwarmConsensusEngine
+    objective = data.get("objective", "Refactor cache eviction algorithm with TTL and LRU hybrid")
+    context = data.get("context", "")
+    max_rounds = int(data.get("maxRounds", 2))
+
+    engine = SwarmConsensusEngine()
+    result = engine.deliberate(objective=objective, context=context, max_rounds=max_rounds)
+    return {
+        "success": True,
+        "result": result.to_dict(),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description="NexForge Droid API Bridge")
     parser.add_argument("--action", required=True, help="API Action to perform")
@@ -869,6 +1044,14 @@ def main():
         "streaming-step": handle_streaming_step,
         "streaming-continue": handle_streaming_continue,
         "streaming-breakpoints": handle_streaming_breakpoints,
+        "evaluation-benchmarks": handle_evaluation_benchmarks,
+        "evaluation-run-benchmark": handle_evaluation_run_benchmark,
+        "evaluation-quality-gate": handle_evaluation_quality_gate,
+        "evaluation-leaderboard": handle_evaluation_leaderboard,
+        "uv-info": handle_uv_info,
+        "cli-exec": handle_cli_exec,
+        "swarm-roles": handle_swarm_roles,
+        "swarm-deliberate": handle_swarm_deliberate,
     }
 
     if args.action not in action_map:

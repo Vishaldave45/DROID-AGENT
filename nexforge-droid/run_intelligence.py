@@ -18,13 +18,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="NexForge Droid Repository & Code Intelligence CLI")
     parser.add_argument(
         "--op",
-        choices=["scan", "graph", "search-symbols", "symbol-details", "context", "stats"],
+        choices=["scan", "graph", "search-symbols", "symbol-details", "file-symbols", "context", "stats"],
         required=True,
         help="Operation to perform",
     )
     parser.add_argument("--path", default="./nexforge-droid", help="Target repository directory path")
     parser.add_argument("--query", default="", help="Search query for symbols")
     parser.add_argument("--symbol", default="", help="Symbol ID or name for detailed inspection")
+    parser.add_argument("--file", default="", help="File path to extract AST symbols from")
     parser.add_argument("--requirement", default="", help="Task requirement for context assembly")
     parser.add_argument("--max-nodes", type=int, default=150, help="Max nodes to export for graph visualizer")
 
@@ -46,6 +47,26 @@ def main() -> None:
         graph = EngineeringGraph()
         graph.build_from_repository(target_path)
         matches = graph.search_symbols(args.query, limit=30)
+        print(json.dumps([m.to_dict() for m in matches], indent=2))
+
+    elif args.op == "file-symbols":
+        graph = EngineeringGraph()
+        graph.build_from_repository(target_path)
+        lookup = args.file.replace("\\", "/")
+        # Try direct relative path
+        if lookup.startswith("nexforge-droid/"):
+            lookup = lookup[len("nexforge-droid/"):]
+        elif lookup.startswith("./nexforge-droid/"):
+            lookup = lookup[len("./nexforge-droid/"):]
+
+        matches = graph.get_file_symbols(lookup)
+        if not matches:
+            base_name = os.path.basename(lookup)
+            matches = [
+                n for n in graph.nodes.values()
+                if (n.file_path == lookup or n.file_path.endswith("/" + base_name) or n.file_path == base_name)
+                and n.node_type != NodeType.IMPORT
+            ]
         print(json.dumps([m.to_dict() for m in matches], indent=2))
 
     elif args.op == "symbol-details":

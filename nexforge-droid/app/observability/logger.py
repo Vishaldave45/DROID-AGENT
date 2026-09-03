@@ -46,7 +46,7 @@ def configure_logging(level: str = "INFO", json_output: bool = True) -> None:
     for handler in list(root_logger.handlers):
         root_logger.removeHandler(handler)
 
-    handler = logging.StreamHandler(sys.stdout)
+    handler = logging.StreamHandler(sys.stderr)
     if json_output:
         handler.setFormatter(JSONFormatter())
     else:

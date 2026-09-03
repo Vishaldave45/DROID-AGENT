@@ -22,96 +22,15 @@ import {
   Network,
   HelpCircle,
 } from "lucide-react";
-
-interface RepoSummary {
-  root_path: string;
-  languages: string[];
-  total_files: number;
-  total_lines_of_code: number;
-  entry_points: string[];
-  test_frameworks: string[];
-  key_directories: string[];
-  language_breakdown: Record<string, number>;
-  frameworks: string[];
-  manifests: Array<{
-    manifest_file: string;
-    manifest_type: string;
-    packages: Record<string, string>;
-    dev_packages: Record<string, string>;
-  }>;
-  files_sample: Array<{
-    path: string;
-    relative_path: string;
-    language: string;
-    size_bytes: number;
-    lines_of_code: number;
-    is_test: boolean;
-    is_entry_point: boolean;
-  }>;
-}
-
-interface GraphNode {
-  node_id: string;
-  node_type: string;
-  name: string;
-  file_path: string;
-  line_start: number;
-  line_end: number;
-  dependencies: string[];
-  docstring: string | null;
-  signature: string | null;
-  async_function: boolean;
-  decorators: string[];
-  parent_id: string | null;
-  complexity_score: number;
-  metadata: Record<string, any>;
-}
-
-interface GraphLink {
-  source_id: string;
-  target_id: string;
-  edge_type: string;
-  weight: number;
-  metadata: Record<string, any>;
-}
-
-interface GraphData {
-  nodes: GraphNode[];
-  links: GraphLink[];
-  stats: {
-    total_nodes: number;
-    total_edges: number;
-    node_distribution: Record<string, number>;
-    edge_distribution: Record<string, number>;
-    total_files: number;
-  };
-}
-
-interface SymbolDetails {
-  symbol: GraphNode;
-  callers: GraphNode[];
-  callees: Array<{
-    target_id: string;
-    target_name: string;
-    target_node: GraphNode | null;
-    resolved: boolean;
-  }>;
-  dependencies: Array<{
-    edge_type: string;
-    target_id: string;
-    target_name: string;
-    target_type: string;
-  }>;
-}
-
-interface ContextPackage {
-  task_id: string;
-  repository_summary: RepoSummary;
-  relevant_files: Record<string, string>;
-  symbols: GraphNode[];
-  estimated_tokens: number;
-  metadata: Record<string, any>;
-}
+import {
+  repoApi,
+  RepoSummary,
+  GraphNode,
+  GraphLink,
+  GraphData,
+  SymbolDetails,
+  ContextPackage,
+} from "../api/repo";
 
 export const RepoIntelligenceStudio: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"summary" | "graph" | "symbols" | "context">("summary");
@@ -140,20 +59,13 @@ export const RepoIntelligenceStudio: React.FC = () => {
   const fetchRepoData = async () => {
     setLoading(true);
     try {
-      const [scanRes, graphRes] = await Promise.all([
-        fetch(`/api/repo/scan?path=${encodeURIComponent(repoPath)}`),
-        fetch(`/api/repo/graph?path=${encodeURIComponent(repoPath)}&maxNodes=160`),
+      const [scanData, graph] = await Promise.all([
+        repoApi.scan(repoPath),
+        repoApi.graph(repoPath, 160),
       ]);
 
-      if (scanRes.ok) {
-        const scanJson = await scanRes.json();
-        setSummary(scanJson);
-      }
-
-      if (graphRes.ok) {
-        const graphJson = await graphRes.json();
-        setGraphData(graphJson);
-      }
+      setSummary(scanData);
+      setGraphData(graph);
     } catch (err) {
       console.error("Failed to load repo intelligence:", err);
     } finally {
@@ -168,11 +80,8 @@ export const RepoIntelligenceStudio: React.FC = () => {
       return;
     }
     try {
-      const res = await fetch(`/api/repo/symbols?path=${encodeURIComponent(repoPath)}&query=${encodeURIComponent(q)}`);
-      if (res.ok) {
-        const data = await res.json();
-        setSearchResults(Array.isArray(data) ? data : []);
-      }
+      const res = await repoApi.searchSymbols(q, repoPath);
+      setSearchResults(Array.isArray(res) ? res : []);
     } catch (err) {
       console.error("Search failed:", err);
     }
@@ -183,11 +92,8 @@ export const RepoIntelligenceStudio: React.FC = () => {
     setSelectedGraphNode(sym);
     setSymbolLoading(true);
     try {
-      const res = await fetch(`/api/repo/symbol-details?path=${encodeURIComponent(repoPath)}&symbol=${encodeURIComponent(sym.node_id)}`);
-      if (res.ok) {
-        const data = await res.json();
-        setSymbolDetails(data);
-      }
+      const data = await repoApi.symbolDetails(sym.node_id, repoPath);
+      setSymbolDetails(data);
     } catch (err) {
       console.error("Failed to fetch symbol details:", err);
     } finally {
@@ -199,15 +105,8 @@ export const RepoIntelligenceStudio: React.FC = () => {
     if (!taskRequirement.trim()) return;
     setContextLoading(true);
     try {
-      const res = await fetch("/api/repo/context", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: repoPath, requirement: taskRequirement }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setContextPkg(data);
-      }
+      const data = await repoApi.assembleContext(taskRequirement, repoPath);
+      setContextPkg(data);
     } catch (err) {
       console.error("Context simulation failed:", err);
     } finally {

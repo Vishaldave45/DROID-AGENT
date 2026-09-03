@@ -1,5 +1,15 @@
 import { api } from './client';
 
+export interface FileMetricItem {
+  path: string;
+  relative_path: string;
+  language: string;
+  size_bytes: number;
+  lines_of_code: number;
+  is_test: boolean;
+  is_entry_point: boolean;
+}
+
 export interface RepoSummary {
   root_path: string;
   languages: string[];
@@ -16,15 +26,8 @@ export interface RepoSummary {
     packages: Record<string, string>;
     dev_packages: Record<string, string>;
   }>;
-  files_sample: Array<{
-    path: string;
-    relative_path: string;
-    language: string;
-    size_bytes: number;
-    lines_of_code: number;
-    is_test: boolean;
-    is_entry_point: boolean;
-  }>;
+  files_sample: FileMetricItem[];
+  files?: FileMetricItem[];
 }
 
 export interface GraphNode {
@@ -105,13 +108,18 @@ export const repoApi = {
     api.get<GraphData>(`/api/repo/graph?path=${encodeURIComponent(path)}&maxNodes=${maxNodes}`),
 
   searchSymbols: (query: string, path: string = './nexforge-droid') =>
-    api.get<{ results: GraphNode[]; total: number }>(
+    api.get<GraphNode[]>(
       `/api/repo/symbols?path=${encodeURIComponent(path)}&query=${encodeURIComponent(query)}`
     ),
 
   symbolDetails: (symbol: string, path: string = './nexforge-droid') =>
     api.get<SymbolDetails>(
       `/api/repo/symbol-details?path=${encodeURIComponent(path)}&symbol=${encodeURIComponent(symbol)}`
+    ),
+
+  fileSymbols: (file: string, path: string = './nexforge-droid') =>
+    api.get<GraphNode[]>(
+      `/api/repo/file-symbols?path=${encodeURIComponent(path)}&file=${encodeURIComponent(file)}`
     ),
 
   assembleContext: (requirement: string, path: string = './nexforge-droid') =>

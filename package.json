@@ -7,7 +7,9 @@
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "uv:test": "PYTHONPATH=./nexforge-droid uv run --no-project python3 -m unittest discover -s nexforge-droid/tests -p 'test_*.py'",
+    "uv:cli": "nexforge"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

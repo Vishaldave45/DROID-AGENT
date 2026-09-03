@@ -15,6 +15,10 @@ import { SafePatchingStudio } from './components/SafePatchingStudio';
 import { DiagnosticLoopStudio } from './components/DiagnosticLoopStudio';
 import { WorkspaceOrchestratorStudio } from './components/WorkspaceOrchestratorStudio';
 import { LiveStreamingConsole } from './components/LiveStreamingConsole';
+import { EvaluationBenchmarkStudio } from './components/EvaluationBenchmarkStudio';
+import { UvCliDistributionStudio } from './components/UvCliDistributionStudio';
+import { SwarmCollaborationStudio } from './components/SwarmCollaborationStudio';
+import { PhaseDocsStudio } from './components/PhaseDocsStudio';
 import { PHASE_ROADMAP } from './data/architectureData';
 import { SystemProvider, useSystem } from './context/SystemContext';
 import {
@@ -37,10 +41,18 @@ import {
   Radio,
   FlaskConical,
   Zap,
+  Award,
+  BookOpen,
+  Users,
+  Package,
 } from 'lucide-react';
 
 function MainApp() {
   const [activeView, setActiveView] = useState<
+    | 'uv-cli'
+    | 'swarm'
+    | 'docs'
+    | 'evaluation'
     | 'orchestrator'
     | 'streaming'
     | 'diagnostics'
@@ -57,7 +69,7 @@ function MainApp() {
     | 'tests'
     | 'files'
     | 'roadmap'
-  >('orchestrator');
+  >('uv-cli');
 
   const { manifest, subsystems, demoMode, health } = useSystem();
 
@@ -104,8 +116,12 @@ function MainApp() {
           {/* Navigation Bar */}
           <nav className="flex items-center gap-1 overflow-x-auto max-w-[65%] py-2">
             {[
-              { id: 'orchestrator', label: 'Orchestrator (Phase 11)', icon: GitPullRequest, highlight: true },
-              { id: 'streaming', label: 'Live Stream (Phase 12)', icon: Radio, highlight: true },
+              { id: 'uv-cli', label: 'UV & CLI Packaging (Phase 14)', icon: Terminal, highlight: true },
+              { id: 'swarm', label: 'Swarm Consensus (Phase 15)', icon: Users, highlight: true },
+              { id: 'docs', label: 'Phase Docs (1-15)', icon: BookOpen, highlight: true },
+              { id: 'evaluation', label: 'Evaluation & Benchmarks (Phase 13)', icon: Award, highlight: true },
+              { id: 'orchestrator', label: 'Orchestrator (Phase 11)', icon: GitPullRequest },
+              { id: 'streaming', label: 'Live Stream (Phase 12)', icon: Radio },
               { id: 'diagnostics', label: 'Fix Loop (Phase 10)', icon: Activity },
               { id: 'patcher', label: 'Safe Patcher (AST)', icon: FileEdit },
               { id: 'planner', label: 'Task Planner (DAG)', icon: ListOrdered },
@@ -117,8 +133,8 @@ function MainApp() {
               { id: 'llm', label: 'LLM & Gemini', icon: Bot },
               { id: 'architecture', label: 'Architecture', icon: Layers },
               { id: 'subsystems', label: `Subsystems (${subsystems.length})`, icon: Cpu },
-              { id: 'tests', label: 'Verification (109 Tests)', icon: ShieldCheck },
-              { id: 'files', label: 'Filesystem', icon: Terminal },
+              { id: 'tests', label: 'Verification (129 Tests)', icon: ShieldCheck },
+              { id: 'files', label: 'Filesystem', icon: Package },
               { id: 'roadmap', label: 'Roadmap', icon: Milestone },
             ].map((tab) => {
               const Icon = tab.icon;
@@ -162,16 +178,16 @@ function MainApp() {
         >
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
-              <span className="text-xs font-semibold uppercase tracking-wider text-indigo-400 font-mono">
-                Phase 11 &amp; 12: End-to-End Orchestration &amp; Live Streaming Active
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400 font-mono">
+                Phase 14 &amp; Phase 15: UV Engine, Global CLI &amp; Swarm Consensus Active
               </span>
             </div>
             <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-              Autonomous Workspace Orchestrator, Multi-File Refactor &amp; Live Telemetry Engine
+              Astral UV Full-Stack Engine, Global NexForge CLI &amp; Autonomous Multi-Agent Swarm
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 max-w-3xl leading-relaxed">
-              Coordinates multi-file AST symbol renaming, atomic staged changesets, automated PR Markdown synthesis, Human-in-the-Loop review gates, and real-time SSE execution telemetry with 109 verified unit tests.
+              Complete migration of the entire platform to Astral UV package manager, global <code className="text-emerald-400 font-mono">nexforge</code> CLI distribution, interactive multi-phase architectural documentation, and Phase 15 multi-agent swarm collaboration with 129 verified unit tests.
             </p>
           </div>
 
@@ -179,13 +195,23 @@ function MainApp() {
             <div className="text-right">
               <div className="text-xs text-slate-400">Runtime Status</div>
               <div className="text-lg font-bold text-emerald-400 font-mono flex items-center gap-1 justify-end">
-                <CheckCircle2 className="w-4 h-4" /> 109/109 Tests Passing
+                <CheckCircle2 className="w-4 h-4" /> 129/129 Tests Passing
               </div>
             </div>
           </div>
         </section>
 
         {/* Dynamic View Sections */}
+        {activeView === 'uv-cli' && <UvCliDistributionStudio />}
+
+        {activeView === 'swarm' && <SwarmCollaborationStudio />}
+
+        {activeView === 'docs' && (
+          <PhaseDocsStudio onNavigatePhase={(tab) => setActiveView(tab as any)} />
+        )}
+
+        {activeView === 'evaluation' && <EvaluationBenchmarkStudio />}
+
         {activeView === 'orchestrator' && <WorkspaceOrchestratorStudio />}
 
         {activeView === 'streaming' && <LiveStreamingConsole />}

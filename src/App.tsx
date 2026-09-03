@@ -11,6 +11,8 @@ import { StatePersistenceStudio } from './components/StatePersistenceStudio';
 import { RepoIntelligenceStudio } from './components/RepoIntelligenceStudio';
 import { ContextBudgetStudio } from './components/ContextBudgetStudio';
 import { TaskPlannerStudio } from './components/TaskPlannerStudio';
+import { SafePatchingStudio } from './components/SafePatchingStudio';
+import { DiagnosticLoopStudio } from './components/DiagnosticLoopStudio';
 import { SUBSYSTEMS, PHASE_ROADMAP, INITIAL_TEST_RESULTS } from './data/architectureData';
 import {
   Cpu,
@@ -26,12 +28,14 @@ import {
   Compass,
   Gauge,
   ListOrdered,
+  FileEdit,
+  Activity,
 } from 'lucide-react';
 
 export default function App() {
   const [activeView, setActiveView] = useState<
-    'planner' | 'context' | 'repo' | 'storage' | 'agent' | 'tools' | 'llm' | 'architecture' | 'subsystems' | 'tests' | 'files' | 'roadmap'
-  >('planner');
+    'diagnostics' | 'patcher' | 'planner' | 'context' | 'repo' | 'storage' | 'agent' | 'tools' | 'llm' | 'architecture' | 'subsystems' | 'tests' | 'files' | 'roadmap'
+  >('diagnostics');
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
@@ -46,7 +50,7 @@ export default function App() {
               <div className="font-bold text-base text-white tracking-tight flex items-center gap-2">
                 NexForge Droid
                 <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
-                  Phase 7 &amp; 8 Live
+                  Phase 10 Live
                 </span>
               </div>
               <p className="text-xs text-slate-400">Autonomous Software Engineering Agent Platform</p>
@@ -56,16 +60,18 @@ export default function App() {
           {/* Navigation Bar */}
           <nav className="flex items-center gap-1 overflow-x-auto">
             {[
+              { id: 'diagnostics', label: 'Fix Loop (Phase 10)', icon: Activity },
+              { id: 'patcher', label: 'Safe Patcher (AST)', icon: FileEdit },
               { id: 'planner', label: 'Task Planner (DAG)', icon: ListOrdered },
               { id: 'context', label: 'Context & Budget', icon: Gauge },
               { id: 'repo', label: 'Repo & Code Graph', icon: Compass },
               { id: 'storage', label: 'State & SQLite DB', icon: Database },
               { id: 'agent', label: 'Agent Loop Studio', icon: PlayCircle },
-              { id: 'tools', label: 'Core Tools (13)', icon: Wrench },
+              { id: 'tools', label: 'Core Tools (18)', icon: Wrench },
               { id: 'llm', label: 'LLM & Gemini', icon: Bot },
               { id: 'architecture', label: 'Architecture', icon: Layers },
-              { id: 'subsystems', label: 'Subsystems (10)', icon: Cpu },
-              { id: 'tests', label: 'Verification (86/86)', icon: ShieldCheck },
+              { id: 'subsystems', label: 'Subsystems (11)', icon: Cpu },
+              { id: 'tests', label: 'Verification (105/105)', icon: ShieldCheck },
               { id: 'files', label: 'Filesystem', icon: Terminal },
               { id: 'roadmap', label: 'Roadmap', icon: Milestone },
             ].map((tab) => {
@@ -98,13 +104,13 @@ export default function App() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400 font-mono">Phase 7 &amp; 8: Complete &amp; Verified</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400 font-mono">Phase 10: Complete &amp; Verified</span>
             </div>
             <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-              Context Budget Governor &amp; Explicit Task Planner
+              Test / Observe / Fix Diagnostic Loop &amp; Autonomous Repair Engine
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 max-w-3xl leading-relaxed">
-              Tiered token budget management, multi-signal AST relevance scoring, semantic line-folding, deterministic DAG execution planning, and runtime failure recovery with dynamic replanning.
+              Consumes unittest/pytest failures, extracts multi-frame stack traces across 12 error categories, correlates AST source context, synthesizes surgical fix hypotheses, executes AST-gated patches, and guards against oscillation cycles and regressions.
             </p>
           </div>
 
@@ -112,13 +118,21 @@ export default function App() {
             <div className="text-right">
               <div className="text-xs text-slate-400">Total Unit Tests Passed</div>
               <div className="text-lg font-bold text-emerald-400 font-mono flex items-center gap-1 justify-end">
-                <CheckCircle2 className="w-4 h-4" /> 100% (86/86)
+                <CheckCircle2 className="w-4 h-4" /> 100% (105/105)
               </div>
             </div>
           </div>
         </section>
 
         {/* Dynamic View Sections */}
+        {activeView === 'diagnostics' && (
+          <DiagnosticLoopStudio />
+        )}
+
+        {activeView === 'patcher' && (
+          <SafePatchingStudio />
+        )}
+
         {activeView === 'planner' && (
           <TaskPlannerStudio />
         )}

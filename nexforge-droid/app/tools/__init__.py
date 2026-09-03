@@ -49,7 +49,29 @@ def get_default_tool_registry(
     registry.register(GitDiffTool())
     registry.register(GitLogTool())
 
-    # 5. Agent Orchestration Tools
+    # 5. Safe Patching & Modification Tools
+    from app.patcher.tools import (
+        ApplyPatchTool,
+        FileSnapshotTool,
+        MultiEditTool,
+        SurgicalEditTool,
+    )
+    registry.register(ApplyPatchTool())
+    registry.register(SurgicalEditTool())
+    registry.register(MultiEditTool())
+    registry.register(FileSnapshotTool())
+
+    # 6. Diagnostic & Test Repair Tools
+    from app.diagnostics.tools import (
+        AutoFixLoopTool,
+        DiagnoseTestFailureTool,
+        RunDiagnosticsTool,
+    )
+    registry.register(RunDiagnosticsTool())
+    registry.register(DiagnoseTestFailureTool())
+    registry.register(AutoFixLoopTool())
+
+    # 7. Agent Orchestration Tools
     if include_agent_tools:
         from app.planner.tools import GeneratePlanTool, ReplanTaskTool
         registry.register(FinishTaskTool())
@@ -74,6 +96,13 @@ __all__ = [
     "GitStatusTool",
     "GitDiffTool",
     "GitLogTool",
+    "ApplyPatchTool",
+    "SurgicalEditTool",
+    "MultiEditTool",
+    "FileSnapshotTool",
+    "RunDiagnosticsTool",
+    "DiagnoseTestFailureTool",
+    "AutoFixLoopTool",
     "FinishTaskTool",
     "GeneratePlanTool",
     "ReplanTaskTool",

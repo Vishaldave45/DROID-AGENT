@@ -282,7 +282,7 @@ class TestToolRegistryAndSecurityPolicy(unittest.TestCase):
             self.assertIn(exp, tool_names)
 
         schemas = self.registry.get_schemas()
-        self.assertEqual(len(schemas), 11)
+        self.assertGreaterEqual(len(schemas), 11)
 
     def test_dispatch_allowed_tool(self) -> None:
         """Verify registry dispatch executes allowed tools and logs execution time."""

@@ -25,6 +25,12 @@ from app.planner.planner import ExplicitTaskPlanner
 from app.planner.replanner import DynamicReplanner
 from app.context.engine import RepositoryContextEngine
 from app.context.base import ContextBudget
+from app.streaming.models import StreamEventType, BreakpointConfig
+from app.streaming.streamer import AgentEventStreamer
+from app.streaming.debugger import InteractiveDebugger
+
+_GLOBAL_STREAMER = AgentEventStreamer()
+_GLOBAL_DEBUGGER = InteractiveDebugger(streamer=_GLOBAL_STREAMER)
 
 
 def handle_diagnostics_parse(data: dict) -> dict:
@@ -596,6 +602,226 @@ def handle_context_budget(data: dict) -> dict:
     }
 
 
+# =========================================================================
+# Phase 11: Orchestrator, Multi-File Refactor & Human Gate Handlers
+# =========================================================================
+
+from app.orchestrator.changeset_manager import ChangesetManager
+from app.orchestrator.human_gate import HumanApprovalGate, RiskLevel
+from app.orchestrator.refactor_engine import MultiFileRefactorEngine, SymbolRenameRequest
+
+_GLOBAL_CHANGESET_MANAGER = ChangesetManager()
+_GLOBAL_APPROVAL_GATE = HumanApprovalGate()
+_GLOBAL_REFACTOR_ENGINE = MultiFileRefactorEngine()
+
+# Seed initial demonstration approvals and changesets for rich operator experience
+if not _GLOBAL_APPROVAL_GATE.list_requests():
+    _GLOBAL_APPROVAL_GATE.request_approval(
+        action_type="DATABASE_MIGRATION",
+        description="Execute destructive column drop in SQLite schema index",
+        risk_level=RiskLevel.HIGH,
+        payload={"migration": "DROP INDEX IF EXISTS idx_task_events_timestamp", "table": "timeline_events"},
+    )
+    _GLOBAL_APPROVAL_GATE.request_approval(
+        action_type="DEPENDENCY_UPGRADE",
+        description="Upgrade tree-sitter AST parser binaries across workspace",
+        risk_level=RiskLevel.MEDIUM,
+        payload={"package": "tree-sitter", "target_version": "0.22.0"},
+    )
+
+if not _GLOBAL_CHANGESET_MANAGER.list_changesets():
+    demo_cs = _GLOBAL_CHANGESET_MANAGER.create_changeset(
+        title="Diagnostic Loop Auto-Healing & Token Resilience",
+        description="Hardens token budget allocation and adds multi-frame AST traceback extraction.",
+        branch_name="nexforge/feat-phase-11-orchestration",
+    )
+    _GLOBAL_CHANGESET_MANAGER.stage_file_change(
+        changeset_id=demo_cs.changeset_id,
+        file_path="nexforge-droid/app/diagnostics/diagnostic_reasoner.py",
+        modified_content='"""Diagnostic Reasoner with AST analysis."""\n\ndef analyze_failure(record):\n    return {"status": "analyzed", "confidence": 0.95}\n',
+        original_content='"""Diagnostic Reasoner."""\n\ndef analyze_failure(record):\n    return {}\n',
+    )
+
+
+def handle_orchestrator_changeset_create(data: dict) -> dict:
+    title = data.get("title", "Workspace Multi-File Update")
+    desc = data.get("description", "")
+    branch = data.get("branchName")
+    cs = _GLOBAL_CHANGESET_MANAGER.create_changeset(title=title, description=desc, branch_name=branch)
+    return {
+        "success": True,
+        "changeset": cs.to_dict(),
+    }
+
+
+def handle_orchestrator_changeset_stage(data: dict) -> dict:
+    cid = data.get("changesetId")
+    fpath = data.get("filePath")
+    modified = data.get("modifiedContent", "")
+    original = data.get("originalContent")
+
+    if not cid or not fpath:
+        return {"success": False, "error": "Missing changesetId or filePath"}
+
+    cs_file = _GLOBAL_CHANGESET_MANAGER.stage_file_change(
+        changeset_id=cid,
+        file_path=fpath,
+        modified_content=modified,
+        original_content=original,
+    )
+    cs = _GLOBAL_CHANGESET_MANAGER.get_changeset(cid)
+
+    return {
+        "success": True,
+        "stagedFile": {
+            "filePath": cs_file.file_path,
+            "additions": cs_file.additions,
+            "deletions": cs_file.deletions,
+            "syntaxValid": cs_file.syntax_valid,
+            "syntaxError": cs_file.syntax_error,
+            "diff": cs_file.diff,
+        },
+        "changeset": cs.to_dict() if cs else None,
+    }
+
+
+def handle_orchestrator_changeset_apply(data: dict) -> dict:
+    cid = data.get("changesetId")
+    if not cid:
+        return {"success": False, "error": "Missing changesetId"}
+    res = _GLOBAL_CHANGESET_MANAGER.apply_changeset_atomically(cid)
+    return res
+
+
+def handle_orchestrator_changeset_list(data: dict) -> dict:
+    changesets = _GLOBAL_CHANGESET_MANAGER.list_changesets()
+    return {
+        "success": True,
+        "total": len(changesets),
+        "changesets": changesets,
+    }
+
+
+def handle_orchestrator_refactor_plan(data: dict) -> dict:
+    old_name = data.get("oldName", "")
+    new_name = data.get("newName", "")
+    targets = data.get("targetFiles")
+
+    if not old_name or not new_name:
+        return {"success": False, "error": "oldName and newName are required"}
+
+    req = SymbolRenameRequest(old_name=old_name, new_name=new_name, target_files=targets)
+    plan = _GLOBAL_REFACTOR_ENGINE.plan_symbol_rename(req)
+    cs = _GLOBAL_REFACTOR_ENGINE.execute_refactor_to_changeset(plan)
+
+    return {
+        "success": True,
+        "plan": plan.to_dict(),
+        "changeset": cs.to_dict(),
+    }
+
+
+def handle_orchestrator_approval_list(data: dict) -> dict:
+    status = data.get("status")
+    reqs = _GLOBAL_APPROVAL_GATE.list_requests(status=status)
+    return {
+        "success": True,
+        "total": len(reqs),
+        "requests": reqs,
+    }
+
+
+def handle_orchestrator_approval_request(data: dict) -> dict:
+    action_type = data.get("actionType", "OPERATION")
+    desc = data.get("description", "")
+    risk_str = data.get("riskLevel", "MEDIUM")
+    payload = data.get("payload", {})
+
+    risk = RiskLevel(risk_str) if risk_str in RiskLevel.__members__ else RiskLevel.MEDIUM
+    req = _GLOBAL_APPROVAL_GATE.request_approval(
+        action_type=action_type,
+        description=desc,
+        risk_level=risk,
+        payload=payload,
+    )
+    return {
+        "success": True,
+        "request": req.to_dict(),
+    }
+
+
+def handle_orchestrator_approval_decide(data: dict) -> dict:
+    req_id = data.get("requestId")
+    decision = data.get("decision", "APPROVED")  # APPROVED or REJECTED
+    reason = data.get("reason", "Operator decision recorded")
+    approver = data.get("approver", "human_operator")
+
+    if not req_id:
+        return {"success": False, "error": "requestId is required"}
+
+    if decision.upper() == "APPROVED":
+        req = _GLOBAL_APPROVAL_GATE.approve(req_id, approver=approver, reason=reason)
+    else:
+        req = _GLOBAL_APPROVAL_GATE.reject(req_id, rejector=approver, reason=reason)
+
+    return {
+        "success": True,
+        "request": req.to_dict(),
+    }
+
+
+def handle_streaming_scenarios(data: dict) -> dict:
+    scenarios = _GLOBAL_STREAMER.get_scenarios()
+    return {
+        "success": True,
+        "scenarios": scenarios,
+        "session": _GLOBAL_DEBUGGER.get_session_state(),
+    }
+
+
+def handle_streaming_reset(data: dict) -> dict:
+    scenario_id = data.get("scenarioId", "refactor-sqlite")
+    session = _GLOBAL_DEBUGGER.reset_session(scenario_id)
+    return {
+        "success": True,
+        "session": session,
+    }
+
+
+def handle_streaming_step(data: dict) -> dict:
+    res = _GLOBAL_DEBUGGER.step_next()
+    return {
+        "success": True,
+        **res,
+    }
+
+
+def handle_streaming_continue(data: dict) -> dict:
+    steps = _GLOBAL_DEBUGGER.continue_execution()
+    return {
+        "success": True,
+        "stepsExecuted": len(steps),
+        "steps": steps,
+        "session": _GLOBAL_DEBUGGER.get_session_state(),
+    }
+
+
+def handle_streaming_breakpoints(data: dict) -> dict:
+    event_types = data.get("eventTypes", [])
+    step_numbers = data.get("stepNumbers", [])
+    enabled = bool(data.get("enabled", True))
+    bp = _GLOBAL_DEBUGGER.set_breakpoints(
+        event_types=event_types,
+        step_numbers=step_numbers,
+        enabled=enabled,
+    )
+    return {
+        "success": True,
+        "breakpoints": bp.to_dict(),
+        "session": _GLOBAL_DEBUGGER.get_session_state(),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description="NexForge Droid API Bridge")
     parser.add_argument("--action", required=True, help="API Action to perform")
@@ -629,6 +855,19 @@ def main():
         "system-manifest": handle_system_manifest,
         "system-subsystems": handle_system_subsystems,
         "context-budget": handle_context_budget,
+        "orchestrator-changeset-create": handle_orchestrator_changeset_create,
+        "orchestrator-changeset-stage": handle_orchestrator_changeset_stage,
+        "orchestrator-changeset-apply": handle_orchestrator_changeset_apply,
+        "orchestrator-changeset-list": handle_orchestrator_changeset_list,
+        "orchestrator-refactor-plan": handle_orchestrator_refactor_plan,
+        "orchestrator-approval-list": handle_orchestrator_approval_list,
+        "orchestrator-approval-request": handle_orchestrator_approval_request,
+        "orchestrator-approval-decide": handle_orchestrator_approval_decide,
+        "streaming-scenarios": handle_streaming_scenarios,
+        "streaming-reset": handle_streaming_reset,
+        "streaming-step": handle_streaming_step,
+        "streaming-continue": handle_streaming_continue,
+        "streaming-breakpoints": handle_streaming_breakpoints,
     }
 
     if args.action not in action_map:

@@ -597,6 +597,123 @@ app.post("/api/llm/format-preview", (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
+// Phase 11 & 12: Orchestrator, Multi-File Refactoring & Live Streaming Endpoints
+// -----------------------------------------------------------------------------
+
+// List & Create Changesets
+app.get("/api/orchestrator/changesets", (req, res) => {
+  runApiBridge("orchestrator-changeset-list", {}, res);
+});
+
+app.post("/api/orchestrator/changesets", (req, res) => {
+  runApiBridge("orchestrator-changeset-create", req.body, res);
+});
+
+// Stage File in Changeset
+app.post("/api/orchestrator/changesets/stage", (req, res) => {
+  runApiBridge("orchestrator-changeset-stage", req.body, res);
+});
+
+// Apply Changeset Atomically
+app.post("/api/orchestrator/changesets/apply", (req, res) => {
+  runApiBridge("orchestrator-changeset-apply", req.body, res);
+});
+
+// Plan Multi-File Refactor
+app.post("/api/orchestrator/refactor/plan", (req, res) => {
+  runApiBridge("orchestrator-refactor-plan", req.body, res);
+});
+
+// Human Approval Gates
+app.get("/api/orchestrator/approvals", (req, res) => {
+  const status = req.query.status as string;
+  runApiBridge("orchestrator-approval-list", { status }, res);
+});
+
+app.post("/api/orchestrator/approvals/request", (req, res) => {
+  runApiBridge("orchestrator-approval-request", req.body, res);
+});
+
+app.post("/api/orchestrator/approvals/decide", (req, res) => {
+  runApiBridge("orchestrator-approval-decide", req.body, res);
+});
+
+// Live Event Streaming Simulation (SSE)
+app.get("/api/agent/stream-events", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  const scenario = (req.query.scenario as string) || "refactor-sqlite";
+
+  const stepsByScenario: Record<string, any[]> = {
+    "refactor-sqlite": [
+      { type: "THINKING", text: "Analyzing foreign key constraints and cascade deletion in app/storage/sqlite_persistence.py..." },
+      { type: "TOOL_CALL", tool: "file_search", args: { pattern: "FOREIGN KEY", directory: "app/storage" } },
+      { type: "TOOL_RESULT", result: "Matched 4 table definitions with active ON DELETE CASCADE pragmas in schema." },
+      { type: "AST_VALIDATION", file: "app/storage/sqlite_persistence.py", status: "VALID", nodesChecked: 184 },
+      { type: "PATCH_STAGE", file: "app/storage/sqlite_persistence.py", diffLines: "+12, -4", chunk: "PRAGMA foreign_keys = ON;" },
+      { type: "REGRESSION_TEST", suite: "tests/test_storage_persistence.py", testsPassed: 8, durationMs: 420 },
+      { type: "COMPLETION", summary: "Successfully updated SQLite cascading deletion logic and validated all 8 test cases." },
+    ],
+    "fix-import-cycle": [
+      { type: "THINKING", text: "Detected circular dependency between DiagnosticReasoner and DiagnosticLoopController." },
+      { type: "TOOL_CALL", tool: "surgical_edit", args: { path: "app/diagnostics/diagnostic_reasoner.py", action: "extract_types" } },
+      { type: "AST_VALIDATION", file: "app/diagnostics/models.py", status: "VALID", nodesChecked: 92 },
+      { type: "PATCH_STAGE", file: "app/diagnostics/diagnostic_reasoner.py", diffLines: "+6, -8" },
+      { type: "REGRESSION_TEST", suite: "tests/test_diagnostic_loop.py", testsPassed: 10, durationMs: 310 },
+      { type: "COMPLETION", summary: "Circular import resolved. Clean dependency DAG established." },
+    ],
+    "security-audit": [
+      { type: "THINKING", text: "Evaluating command execution boundaries against malicious payloads (e.g. `rm -rf /`, `cat /etc/shadow`)." },
+      { type: "TOOL_CALL", tool: "policy_check", args: { command: "rm -rf /", context: "security_sandbox" } },
+      { type: "TOOL_RESULT", result: "DENIED: PolicyEngine rule BLOCKED_COMMANDS triggered (Severity: CRITICAL)." },
+      { type: "REGRESSION_TEST", suite: "tests/test_security_policy.py", testsPassed: 4, durationMs: 150 },
+      { type: "COMPLETION", summary: "Security perimeter validated. 0 unauthenticated path escapes permitted." },
+    ],
+  };
+
+  const steps = stepsByScenario[scenario] || stepsByScenario["refactor-sqlite"];
+
+  let stepIdx = 0;
+  const interval = setInterval(() => {
+    if (stepIdx < steps.length) {
+      res.write(`data: ${JSON.stringify({ step: stepIdx + 1, total: steps.length, event: steps[stepIdx] })}\n\n`);
+      stepIdx++;
+    } else {
+      clearInterval(interval);
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
+    }
+  }, 700);
+
+  req.on("close", () => {
+    clearInterval(interval);
+  });
+});
+
+// Interactive Debugger Control Endpoints (Phase 12)
+app.get("/api/debugger/scenarios", (req, res) => {
+  runApiBridge("streaming-scenarios", {}, res);
+});
+
+app.post("/api/debugger/reset", (req, res) => {
+  runApiBridge("streaming-reset", req.body, res);
+});
+
+app.post("/api/debugger/step", (req, res) => {
+  runApiBridge("streaming-step", req.body, res);
+});
+
+app.post("/api/debugger/continue", (req, res) => {
+  runApiBridge("streaming-continue", req.body, res);
+});
+
+app.post("/api/debugger/breakpoints", (req, res) => {
+  runApiBridge("streaming-breakpoints", req.body, res);
+});
+
+// -----------------------------------------------------------------------------
 // Vite Middleware / Static Server
 // -----------------------------------------------------------------------------
 

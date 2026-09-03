@@ -71,7 +71,19 @@ def get_default_tool_registry(
     registry.register(DiagnoseTestFailureTool())
     registry.register(AutoFixLoopTool())
 
-    # 7. Agent Orchestration Tools
+    # 7. Workspace Orchestrator & Refactor Tools (Phase 11)
+    from app.orchestrator.tools import (
+        ApplyMultiFileRefactorTool,
+        CreateChangesetTool,
+        GeneratePullRequestTool,
+        RequestHumanApprovalTool,
+    )
+    registry.register(CreateChangesetTool())
+    registry.register(ApplyMultiFileRefactorTool())
+    registry.register(GeneratePullRequestTool())
+    registry.register(RequestHumanApprovalTool())
+
+    # 8. Agent Orchestration Tools
     if include_agent_tools:
         from app.planner.tools import GeneratePlanTool, ReplanTaskTool
         registry.register(FinishTaskTool())
@@ -103,6 +115,10 @@ __all__ = [
     "RunDiagnosticsTool",
     "DiagnoseTestFailureTool",
     "AutoFixLoopTool",
+    "CreateChangesetTool",
+    "ApplyMultiFileRefactorTool",
+    "GeneratePullRequestTool",
+    "RequestHumanApprovalTool",
     "FinishTaskTool",
     "GeneratePlanTool",
     "ReplanTaskTool",

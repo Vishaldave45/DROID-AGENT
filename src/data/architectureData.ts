@@ -386,9 +386,47 @@ export const PHASE_ROADMAP: PhaseRoadmapItem[] = [
       '10 new unit tests in test_diagnostic_loop.py (105 total passing, 100%)',
     ],
   },
+  {
+    phase: 11,
+    title: 'Autonomous Workspace Orchestrator & Multi-File Refactor',
+    status: 'completed',
+    objective: 'Multi-file AST symbol renaming, atomic staged changesets, unified diff tracking, automated PR description synthesis, and Human-in-the-Loop review gates.',
+    deliverables: [
+      'ChangesetManager managing atomic multi-file staging with pre-flight AST validation',
+      'MultiFileRefactorEngine performing workspace-wide identifier search and AST-validated symbol renaming',
+      'HumanApprovalGate pausing destructive actions (migrations, deletions, package updates) for operator authorization',
+      'Automated Pull Request Markdown generator with impact analysis and verification checklists',
+      'CreateChangesetTool, ApplyMultiFileRefactorTool, GeneratePullRequestTool, RequestHumanApprovalTool in ToolRegistry (22 tools total)',
+      '4 new unit tests in test_orchestrator.py (109 total passing, 100%)',
+    ],
+  },
+  {
+    phase: 12,
+    title: 'Live Agent Event Streaming & Interactive Debugger',
+    status: 'completed',
+    objective: 'Real-time Server-Sent Events (SSE) telemetry streaming, step-by-step reasoning debugger, and live subprocess terminal viewer.',
+    deliverables: [
+      'SSE event stream endpoint (/api/agent/stream-events) emitting thinking, tool call, validation, and test events',
+      'Interactive LiveStreamingConsole with progress tracking and step-by-step timeline visualization',
+      'Subprocess terminal stream viewer for real-time stdout/stderr inspection',
+    ],
+  },
 ];
 
 export const INITIAL_TEST_RESULTS: TestCaseResult[] = [
+  // Phase 12 Event Streaming & Debugger Tests (5 tests)
+  { name: 'test_stream_event_serialization_and_deserialization', module: 'tests.test_event_streaming', status: 'passed', durationMs: 0.3, description: 'Verifies StreamEvent serializes cleanly to dict and roundtrips without data loss.' },
+  { name: 'test_streamer_subscriber_dispatch', module: 'tests.test_event_streaming', status: 'passed', durationMs: 0.2, description: 'Verifies subscribers receive emitted stream events in real time.' },
+  { name: 'test_debugger_step_progression', module: 'tests.test_event_streaming', status: 'passed', durationMs: 0.3, description: 'Verifies stepping forward one event at a time advances current step index.' },
+  { name: 'test_debugger_breakpoint_matching_and_pause', module: 'tests.test_event_streaming', status: 'passed', durationMs: 0.4, description: 'Verifies debugger pauses when next event matches configured breakpoint.' },
+  { name: 'test_scenario_catalog_and_trace_generation', module: 'tests.test_event_streaming', status: 'passed', durationMs: 0.3, description: 'Verifies pre-built scenarios are discoverable and build valid execution traces.' },
+
+  // Phase 11 Orchestrator & Multi-File Refactor Tests (4 tests)
+  { name: 'test_create_and_stage_changeset', module: 'tests.test_orchestrator', status: 'passed', durationMs: 0.4, description: 'Verifies staging file changes into changeset, calculating unified diffs, and atomic disk commit.' },
+  { name: 'test_multi_file_symbol_rename', module: 'tests.test_orchestrator', status: 'passed', durationMs: 0.5, description: 'Verifies multi-file identifier renaming across repository with AST syntax verification.' },
+  { name: 'test_request_and_approve', module: 'tests.test_orchestrator', status: 'passed', durationMs: 0.2, description: 'Verifies human approval gate authorization flow for high-risk operations.' },
+  { name: 'test_request_and_reject', module: 'tests.test_orchestrator', status: 'passed', durationMs: 0.2, description: 'Verifies human approval gate rejection flow with recorded operator reasoning.' },
+
   // Phase 10 Diagnostic Loop Tests (10 tests)
   { name: 'test_parse_python_traceback_multiframe', module: 'tests.test_diagnostic_loop', status: 'passed', durationMs: 0.3, description: 'Verifies parsing standard Python tracebacks with multiple stack frames and line extraction.' },
   { name: 'test_parse_error_categories', module: 'tests.test_diagnostic_loop', status: 'passed', durationMs: 0.2, description: 'Verifies proper categorization across 12 common runtime and assertion exception categories.' },

@@ -25,7 +25,7 @@ export const PhaseDocsStudio: React.FC<PhaseDocsStudioProps> = ({ onNavigatePhas
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
   const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
 
-  const categories = ["ALL", "Core Engine", "Agent Core", "Code Intelligence", "Code Modification", "Diagnostics", "Planning", "Orchestration", "Distribution", "Swarm Intelligence"];
+  const categories = ["ALL", "Core Engine", "Agent Core", "Code Intelligence", "Code Modification", "Diagnostics", "Planning", "Orchestration", "Distribution", "Swarm Intelligence", "DevOps & CI/CD", "Memory & Persistence", "Security & Governance"];
 
   const filteredPhases = PHASES_DOCUMENTATION.filter((phase) => {
     const matchesSearch =
@@ -64,7 +64,7 @@ export const PhaseDocsStudio: React.FC<PhaseDocsStudioProps> = ({ onNavigatePhas
                   Comprehensive Multi-Phase Architectural Documentation
                 </h2>
                 <span className="px-2 py-0.5 text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full">
-                  15 Full Phases
+                  19 Full Phases
                 </span>
               </div>
               <p className="text-sm text-slate-400 mt-0.5">

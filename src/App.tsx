@@ -21,6 +21,7 @@ import { SwarmCollaborationStudio } from './components/SwarmCollaborationStudio'
 import { MCPGatewayStudio } from './components/MCPGatewayStudio';
 import { GitPRStudio } from './components/GitPRStudio';
 import { PhaseDocsStudio } from './components/PhaseDocsStudio';
+import { MemoryInsightsCard } from './components/MemoryInsightsCard';
 import { PHASE_ROADMAP } from './data/architectureData';
 import { SystemProvider, useSystem } from './context/SystemContext';
 import {
@@ -49,10 +50,12 @@ import {
   Users,
   Package,
   Network,
+  Brain,
 } from 'lucide-react';
 
 function MainApp() {
   const [activeView, setActiveView] = useState<
+    | 'memory'
     | 'git-pr'
     | 'mcp'
     | 'uv-cli'
@@ -75,7 +78,7 @@ function MainApp() {
     | 'tests'
     | 'files'
     | 'roadmap'
-  >('git-pr');
+  >('memory');
 
   const { manifest, subsystems, demoMode, health } = useSystem();
 
@@ -122,11 +125,12 @@ function MainApp() {
           {/* Navigation Bar */}
           <nav className="flex items-center gap-1 overflow-x-auto max-w-[65%] py-2">
             {[
+              { id: 'memory', label: 'Memory Insights (Phase 18)', icon: Brain, highlight: true },
               { id: 'git-pr', label: 'Git Worktrees & CI (Phase 17)', icon: GitBranch, highlight: true },
               { id: 'mcp', label: 'MCP Gateway (Phase 16)', icon: Network, highlight: true },
               { id: 'uv-cli', label: 'UV & CLI Packaging (Phase 14)', icon: Terminal, highlight: true },
               { id: 'swarm', label: 'Swarm Consensus (Phase 15)', icon: Users, highlight: true },
-              { id: 'docs', label: 'Phase Docs (1-17)', icon: BookOpen, highlight: true },
+              { id: 'docs', label: 'Phase Docs (1-19)', icon: BookOpen, highlight: true },
               { id: 'evaluation', label: 'Evaluation & Benchmarks (Phase 13)', icon: Award, highlight: true },
               { id: 'orchestrator', label: 'Orchestrator (Phase 11)', icon: GitPullRequest },
               { id: 'streaming', label: 'Live Stream (Phase 12)', icon: Radio },
@@ -141,7 +145,7 @@ function MainApp() {
               { id: 'llm', label: 'LLM & Gemini', icon: Bot },
               { id: 'architecture', label: 'Architecture', icon: Layers },
               { id: 'subsystems', label: `Subsystems (${subsystems.length})`, icon: Cpu },
-              { id: 'tests', label: 'Verification (145 Tests)', icon: ShieldCheck },
+              { id: 'tests', label: 'Verification (161 Tests)', icon: ShieldCheck },
               { id: 'files', label: 'Filesystem', icon: Package },
               { id: 'roadmap', label: 'Roadmap', icon: Milestone },
             ].map((tab) => {
@@ -210,6 +214,8 @@ function MainApp() {
         </section>
 
         {/* Dynamic View Sections */}
+        {activeView === 'memory' && <MemoryInsightsCard />}
+
         {activeView === 'git-pr' && <GitPRStudio />}
 
         {activeView === 'mcp' && <MCPGatewayStudio />}

@@ -476,28 +476,62 @@ export const PHASES_DOCUMENTATION: PhaseDoc[] = [
   {
     id: "phase-18",
     number: 18,
-    title: "Autonomous Code Review Agent, Security Vulnerability Scanner & SARIF Export",
-    category: "Security & Governance",
-    status: "Active",
-    summary: "Dedicated Code Review agent applying OWASP Top 10 heuristics, AST data-flow taint analysis, style alignment, and industry-standard SARIF export for GitHub Security & GitLab CI.",
+    title: "Neural Symbolic Memory & Long-term Agent Persistence",
+    category: "Memory & Persistence",
+    status: "Completed",
+    summary: "Hybrid vector-symbolic memory architecture combining episodic experience logs, semantic knowledge graphs, working memory consolidation, and long-term vector retrieval for autonomous agents across sessions.",
     keyModules: [
-      "app/review/analyzer.py",
-      "app/review/sarif.py",
-      "app/review/security_scanner.py",
-      "app/tools/review_tools.py"
+      "app/memory/vector_store.py",
+      "app/memory/symbolic_kb.py",
+      "app/memory/episodic.py",
+      "app/memory/consolidation.py",
+      "app/tools/memory_tools.py"
     ],
     cliExamples: [
-      "nexforge review run",
-      "nexforge review scan --sarif report.sarif"
+      "nexforge memory search --query 'authentication bug'",
+      "nexforge memory consolidate",
+      "nexforge memory stats"
     ],
     apiEndpoints: [
-      "POST /api/review/scan",
-      "GET /api/review/sarif"
+      "GET /api/memory/search",
+      "POST /api/memory/store",
+      "POST /api/memory/consolidate",
+      "GET /api/memory/stats"
     ],
-    architectureDetails: "Static analysis and taint engine analyzing PR diffs for injection flaws, secret leakage, unhandled exceptions, and dead code, exporting structured SARIF reports.",
+    architectureDetails: "Combines vector embedding retrieval with symbolic knowledge graph triples to provide cross-session agent memory, automatically consolidating episodic interactions into durable semantic knowledge.",
     verificationSteps: [
-      "Audit sample code against SQL injection and insecure deserialization patterns",
-      "Export RFC-compliant SARIF v2.1.0 document"
+      "Verify semantic similarity retrieval returns relevant episodic records",
+      "Verify symbolic knowledge graph stores and queries relationship triples correctly",
+      "Verify automated consolidation summarizes raw session logs into compressed persistent memory nodes"
+    ]
+  },
+  {
+    id: "phase-19",
+    number: 19,
+    title: "Autonomous Test Suite Synthesizer & Mutation Testing Engine",
+    category: "Diagnostics",
+    status: "Active",
+    summary: "Introspects Python AST to generate robust unittest test suites covering nominal and boundary conditions, combined with a mutation testing engine injecting syntactic mutants (AOR, ROR, COR) to verify test suite quality and coverage.",
+    keyModules: [
+      "app/testing/synthesizer.py",
+      "app/testing/mutation.py",
+      "app/testing/coverage.py",
+      "app/tools/testing_tools.py"
+    ],
+    cliExamples: [
+      "nexforge test synthesize --module app.agent.core",
+      "nexforge test mutate --module app.utils"
+    ],
+    apiEndpoints: [
+      "POST /api/testing/synthesize",
+      "POST /api/testing/mutate",
+      "POST /api/testing/coverage"
+    ],
+    architectureDetails: "Automates test creation from AST structure and evaluates test suite robustness by injecting arithmetic, relational, and logical mutants, computing strict mutation scores.",
+    verificationSteps: [
+      "Synthesize unit tests for target python module",
+      "Run mutation testing and verify mutation score calculation",
+      "Analyze AST statement and branch coverage metrics"
     ]
   }
 ];

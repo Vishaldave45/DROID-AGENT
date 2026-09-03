@@ -510,6 +510,34 @@ export const PHASE_ROADMAP: PhaseRoadmapItem[] = [
       '8 new unit tests in test_git_pr_lifecycle.py (145 total passing, 100%)',
     ],
   },
+  {
+    phase: 18,
+    title: 'Neural Symbolic Memory & Long-term Agent Persistence',
+    status: 'completed',
+    objective: 'Hybrid vector-symbolic memory architecture combining episodic experience logs, semantic knowledge graphs, working memory consolidation, and long-term vector retrieval for autonomous agents across sessions.',
+    deliverables: [
+      'Vector similarity embedding engine (app/memory/vector_store.py) for semantic episode matching',
+      'Symbolic Knowledge Base (app/memory/symbolic_kb.py) storing subject-predicate-object relationship triples',
+      'Episodic memory recorder (app/memory/episodic.py) capturing tool execution traces and reasoning steps',
+      'Memory consolidation engine (app/memory/consolidation.py) distilling raw session logs into semantic rules',
+      'Memory management tools registered in ToolRegistry',
+      'nexforge memory CLI subcommands (search, store, consolidate, stats)',
+      'Unit tests for neural-symbolic memory persistence',
+    ],
+  },
+  {
+    phase: 19,
+    title: 'Autonomous Test Suite Synthesizer & Mutation Testing Engine',
+    status: 'active',
+    objective: 'AST introspection engine generating robust unittest test suites (nominal and boundary cases) and mutation testing engine injecting syntactic mutants (AOR, ROR, COR) to verify test suite quality and coverage.',
+    deliverables: [
+      'TestSynthesizer parsing Python signatures and generating robust unittest test suites',
+      'MutationEngine injecting mutants and evaluating mutation scores',
+      'ASTCoverageEstimator analyzing statement, branch, and function metrics',
+      'Tool registration (synthesize_unit_tests, run_mutation_tests, analyze_test_coverage)',
+      '16 unit tests in test_test_synthesis.py (161 total passing, 100%)',
+    ],
+  },
 ];
 
 export const INITIAL_TEST_RESULTS: TestCaseResult[] = [

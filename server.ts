@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 app.use(express.json());
 
@@ -929,8 +929,12 @@ app.get("/api/review/rules", (req, res) => {
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const { createServer: createViteServer } = await import("vite");
+    const hmrPort = process.env.HMR_PORT ? parseInt(process.env.HMR_PORT, 10) : undefined;
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: hmrPort ? { port: hmrPort } : undefined,
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);
